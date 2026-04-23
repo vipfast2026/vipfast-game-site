@@ -713,44 +713,6 @@
         </div>
 
         <div class="games-grid" id="hotGames">
-            <!-- 象棋游戏 -->
-            <div class="game-card" onclick="openGame('xiangqi')">
-                <span class="badge-hot">热门</span>
-                <div class="game-thumbnail gradient-xiangqi">
-                    ♟️
-                    <div class="play-icon">▶</div>
-                </div>
-                <div class="game-info">
-                    <div class="game-title">中国象棋</div>
-                    <div class="game-meta">
-                        <span class="game-category">策略</span>
-                        <div class="game-rating">
-                            <span class="stars">★★★★★</span>
-                            <span class="rating-count">2.3k</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 数学绘图 -->
-            <div class="game-card" onclick="openGame('math')">
-                <span class="badge-new">新品</span>
-                <div class="game-thumbnail gradient-math">
-                    📐
-                    <div class="play-icon">▶</div>
-                </div>
-                <div class="game-info">
-                    <div class="game-title">AI 智能绘图</div>
-                    <div class="game-meta">
-                        <span class="game-category">益智</span>
-                        <div class="game-rating">
-                            <span class="stars">★★★★☆</span>
-                            <span class="rating-count">856</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- 贪吃蛇 -->
             <div class="game-card" onclick="openGame('snake')">
                 <span class="badge-hot">热门</span>
@@ -941,30 +903,6 @@
     <script>
         // 游戏数据
         const games = [
-            {
-                id: 'xiangqi',
-                title: '中国象棋',
-                category: 'strategy',
-                icon: '♟️',
-                gradient: 'gradient-xiangqi',
-                rating: 5,
-                reviews: '2.3k',
-                url: 'xiangqi/index.html',
-                status: 'available',
-                hot: true
-            },
-            {
-                id: 'math',
-                title: 'AI 智能绘图',
-                category: 'puzzle',
-                icon: '📐',
-                gradient: 'gradient-math',
-                rating: 4,
-                reviews: '856',
-                url: 'math-geometry/frontend/index.html',
-                status: 'available',
-                new: true
-            },
             {
                 id: 'snake',
                 title: '贪吃蛇大作战',

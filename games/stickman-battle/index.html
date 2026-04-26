@@ -2,19 +2,21 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>火柴人大战 - 橡胶人战争</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            touch-action: manipulation;
         }
 
         html, body {
             width: 100%;
             height: 100%;
             overflow: hidden;
+            touch-action: none;
         }
 
         body {
@@ -24,6 +26,14 @@
             align-items: center;
             justify-content: center;
             color: white;
+        }
+
+        body.iframe-mode {
+            padding: 0;
+        }
+
+        body.iframe-mode h1, body.iframe-mode .instructions {
+            display: none;
         }
 
         .game-wrapper {

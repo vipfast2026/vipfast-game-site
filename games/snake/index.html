@@ -2,13 +2,14 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>贪吃蛇大作战</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            touch-action: manipulation;
         }
 
         body {
@@ -22,6 +23,7 @@
             color: white;
             overflow: hidden;
             padding: 20px;
+            touch-action: none;
         }
 
         /* iframe 嵌入时的样式 */
@@ -392,17 +394,44 @@
                 flex-direction: column;
             }
 
-            .controls {
-                display: none;
-            }
-
             .game-container {
-                padding: 15px;
+                padding: 10px;
             }
 
             #gameCanvas {
                 max-width: 100%;
                 height: auto;
+            }
+
+            body.iframe-mode #gameCanvas {
+                width: 280px !important;
+                height: 280px !important;
+            }
+
+            body.iframe-mode .game-header {
+                margin-bottom: 8px;
+            }
+
+            body.iframe-mode .score-display,
+            body.iframe-mode .speed-display,
+            body.iframe-mode .high-score {
+                font-size: 11px;
+            }
+
+            body.iframe-mode .controls {
+                margin-top: 10px;
+                display: flex !important;
+            }
+
+            body.iframe-mode .btn {
+                padding: 7px 14px;
+                font-size: 11px;
+            }
+
+            .mobile-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
             }
         }
 
@@ -963,6 +992,43 @@
                     break;
             }
         });
+
+        // 触摸滑动控制
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (!isGameRunning) return;
+
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+
+            const dx = touchEndX - touchStartX;
+            const dy = touchEndY - touchStartY;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+                // 水平滑动
+                if (dx > 30) {
+                    setDirection('right');
+                } else if (dx < -30) {
+                    setDirection('left');
+                }
+            } else {
+                // 垂直滑动
+                if (dy > 30) {
+                    setDirection('down');
+                } else if (dy < -30) {
+                    setDirection('up');
+                }
+            }
+
+            e.preventDefault();
+        }, { passive: false });
 
         initSnake();
         generateFood();

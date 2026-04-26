@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>弹球打砖块 - 糖果乐园</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
         body {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
@@ -15,7 +15,10 @@
             justify-content: center;
             padding: 20px;
             font-family: sans-serif;
+            touch-action: none;
         }
+        body.iframe-mode { padding: 10px; }
+        body.iframe-mode h1, body.iframe-mode .instructions { display: none; }
         h1 { color: #fff; margin-bottom: 10px; }
         .stats {
             display: flex;
@@ -28,6 +31,7 @@
             background: linear-gradient(180deg, #0f0f23 0%, #1a1a3e 100%);
             border-radius: 10px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            max-width: 100%;
         }
         .btn {
             margin-top: 15px;
@@ -50,9 +54,40 @@
             border-radius: 15px;
             text-align: center;
             display: none;
+            z-index: 100;
         }
         .game-over h2 { color: #e74c3c; margin-bottom: 10px; }
         .game-over.win h2 { color: #27ae60; }
+
+        /* 移动端控制 */
+        .mobile-controls {
+            display: none;
+            margin-top: 20px;
+            gap: 10px;
+        }
+        .mobile-btn {
+            width: 60px;
+            height: 60px;
+            border: none;
+            border-radius: 15px;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.5), rgba(41, 128, 185, 0.5));
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(52, 152, 219, 0.8);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .mobile-btn:active {
+            transform: scale(0.9);
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.7), rgba(41, 128, 185, 0.7));
+        }
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: flex;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -63,6 +98,12 @@
     </div>
     <canvas id="game" width="400" height="500"></canvas>
     <button class="btn" onclick="initGame()">🔄 重新开始</button>
+
+    <!-- 移动端控制 -->
+    <div class="mobile-controls">
+        <button class="mobile-btn" onclick="moveLeft()">←</button>
+        <button class="mobile-btn" onclick="moveRight()">→</button>
+    </div>
 
     <div class="game-over" id="gameOver">
         <h2>游戏结束</h2>
@@ -234,11 +275,37 @@
 
         // Mouse control
         canvas.addEventListener('mousemove', (e) => {
-            const relativeX = e.clientX - canvas.offsetLeft;
+            const rect = canvas.getBoundingClientRect();
+            const relativeX = e.clientX - rect.left;
             if(relativeX > 0 && relativeX < canvas.width) {
                 paddle.x = relativeX - paddle.width/2;
             }
         });
+
+        // Touch control
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touchX = e.touches[0].clientX - rect.left;
+            paddle.x = touchX - paddle.width/2;
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touchX = e.touches[0].clientX - rect.left;
+            paddle.x = touchX - paddle.width/2;
+        }, { passive: false });
+
+        // Mobile button controls
+        function moveLeft() {
+            leftPressed = true;
+            setTimeout(() => leftPressed = false, 100);
+        }
+        function moveRight() {
+            rightPressed = true;
+            setTimeout(() => rightPressed = false, 100);
+        }
 
         initGame();
     </script>

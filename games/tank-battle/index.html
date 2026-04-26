@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>坦克大战 - 糖果乐园</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
         body {
             background: linear-gradient(135deg, #2c3e50 0%, #1a1a2e 100%);
             min-height: 100vh;
@@ -15,6 +15,7 @@
             justify-content: center;
             padding: 20px;
             font-family: sans-serif;
+            touch-action: none;
         }
         body.iframe-mode { padding: 0; background: #1a1a2e; }
         body.iframe-mode h1, body.iframe-mode .instructions { display: none; }
@@ -80,6 +81,58 @@
             font-size: 12px;
             z-index: 10;
         }
+
+        /* 移动端控制 */
+        .mobile-controls {
+            display: none;
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            z-index: 30;
+            padding: 10px;
+        }
+
+        .mobile-controls-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .mobile-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 15px;
+            background: linear-gradient(135deg, rgba(0, 255, 0, 0.3), rgba(0, 128, 0, 0.3));
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(0, 255, 0, 0.5);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .mobile-btn:active {
+            transform: scale(0.9);
+            background: linear-gradient(135deg, rgba(0, 255, 0, 0.5), rgba(0, 128, 0, 0.5));
+        }
+
+        .mobile-btn.shoot {
+            background: linear-gradient(135deg, rgba(255, 0, 0, 0.3), rgba(128, 0, 0, 0.3));
+            border-color: rgba(255, 0, 0, 0.5);
+        }
+
+        .mobile-btn.shoot:active {
+            background: linear-gradient(135deg, rgba(255, 0, 0, 0.5), rgba(128, 0, 0, 0.5));
+        }
+
+        @media (max-width: 768px) {
+            body.iframe-mode .mobile-controls {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -106,6 +159,20 @@
             <h2>🏆 胜利!</h2>
             <p>恭喜通关!</p>
             <button class="btn" onclick="startGame()">再玩一次</button>
+        </div>
+        <!-- 移动端控制 -->
+        <div class="mobile-controls">
+            <div class="mobile-controls-row">
+                <button class="mobile-btn" onclick="setKey('KeyW', true)">↑</button>
+            </div>
+            <div class="mobile-controls-row">
+                <button class="mobile-btn" onclick="setKey('KeyA', true)">←</button>
+                <button class="mobile-btn" onclick="setKey('KeyS', true)">↓</button>
+                <button class="mobile-btn" onclick="setKey('KeyD', true)">→</button>
+            </div>
+            <div class="mobile-controls-row">
+                <button class="mobile-btn shoot" onclick="shoot()">🔥</button>
+            </div>
         </div>
     </div>
 
@@ -543,6 +610,16 @@
             }
         });
         document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        // 移动端控制函数
+        function setKey(code, pressed) {
+            keys[code] = pressed;
+        }
+
+        function shoot() {
+            keys['Space'] = true;
+            setTimeout(() => keys['Space'] = false, 100);
+        }
 
         // 初始化
         loadMap(0);

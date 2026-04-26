@@ -2,13 +2,14 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>植物大战僵尸 - 糖果乐园</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            touch-action: manipulation;
         }
 
         body {
@@ -20,6 +21,15 @@
             padding: 20px;
             font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
             overflow: auto;
+            touch-action: none;
+        }
+
+        body.iframe-mode {
+            padding: 10px;
+        }
+
+        body.iframe-mode h1, body.iframe-mode .instructions {
+            display: none;
         }
 
         .game-wrapper {

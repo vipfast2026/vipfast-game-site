@@ -655,14 +655,6 @@
             background: linear-gradient(135deg, rgba(233, 213, 255, 0.15), rgba(196, 181, 253, 0.08));
         }
 
-        .game-card[data-category="racing"] .game-thumb-inner {
-            background: linear-gradient(135deg, rgba(254, 226, 226, 0.15), rgba(254, 202, 202, 0.08));
-        }
-
-        .game-card[data-category="sports"] .game-thumb-inner {
-            background: linear-gradient(135deg, rgba(254, 243, 199, 0.15), rgba(253, 230, 138, 0.08));
-        }
-
         .play-overlay {
             position: absolute;
             inset: 0;
@@ -942,12 +934,15 @@
             overflow: auto;
             border: 2px solid var(--primary);
             box-shadow: 0 0 100px rgba(124, 58, 237, 0.5);
+            -webkit-overflow-scrolling: touch;
         }
 
         .modal-frame iframe {
             width: 100%;
             height: 100%;
+            min-height: 600px;
             border: none;
+            touch-action: none;
         }
 
         .modal-close {
@@ -1028,18 +1023,6 @@
             .header-actions {
                 display: none;
             }
-            .nav-menu {
-                display: flex;
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                gap: 4px;
-                -webkit-overflow-scrolling: touch;
-            }
-            .nav-menu a {
-                padding: 8px 14px;
-                font-size: 13px;
-                white-space: nowrap;
-            }
             .hero {
                 padding: 20px 15px;
             }
@@ -1053,11 +1036,14 @@
                 padding-bottom: 10px;
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
+                white-space: nowrap;
             }
             .category-tab {
                 padding: 10px 16px;
                 font-size: 13px;
                 white-space: nowrap;
+                display: inline-flex;
+                gap: 6px;
             }
             .category-tab .icon {
                 font-size: 18px;
@@ -1139,12 +1125,6 @@
                 <div class="logo-icon">🍬</div>
                 <span class="logo-text">糖果乐园</span>
             </a>
-            <nav class="nav-menu">
-                <a href="#" class="active">首页</a>
-                <a href="#" onclick="filterGames('hot', null); return false;">🔥 热门</a>
-                <a href="#" onclick="filterGames('new', null); return false;">✨ 新作</a>
-                <a href="#" onclick="filterGames('favorites', document.querySelector('.category-tab[data-category=&quot;favorites&quot;]')); return false;">💖 收藏<span class="favorite-count" id="favoriteCount">0</span></a>
-            </nav>
             <div class="search-bar">
                 <input type="text" id="searchInput" placeholder="找游戏...">
                 <button onclick="searchGames()">🔍</button>
@@ -1180,6 +1160,14 @@
                 <span class="icon">🔥</span>
                 <span>全部</span>
             </div>
+            <div class="category-tab" onclick="filterGames('hot', this)">
+                <span class="icon">🔥</span>
+                <span>热门</span>
+            </div>
+            <div class="category-tab" onclick="filterGames('favorites', this)">
+                <span class="icon">💖</span>
+                <span>收藏</span>
+            </div>
             <div class="category-tab" data-category="action" onclick="filterGames('action', this)">
                 <span class="icon">⚔️</span>
                 <span>动作</span>
@@ -1195,14 +1183,6 @@
             <div class="category-tab" onclick="filterGames('strategy', this)">
                 <span class="icon">🎲</span>
                 <span>策略</span>
-            </div>
-            <div class="category-tab" onclick="filterGames('racing', this)">
-                <span class="icon">🏎️</span>
-                <span>赛车</span>
-            </div>
-            <div class="category-tab" onclick="filterGames('sports', this)">
-                <span class="icon">🏀</span>
-                <span>体育</span>
             </div>
         </div>
 
@@ -1306,13 +1286,13 @@
 
     <script>
         const games = [
+            { id: 7, name: '飞机大战', emoji: '✈️', category: 'action', hot: true, stars: 4, plays: '80k', path: 'games/plane-war/index.html' },
             { id: 1, name: '火柴人大战', emoji: '🔥', category: 'action', hot: true, stars: 5, plays: '120k', path: 'games/stickman-battle/index.html' },
             { id: 2, name: '俄罗斯方块', emoji: '🧱', category: 'puzzle', hot: true, stars: 5, plays: '200k', path: 'games/tetris/index.html' },
             { id: 3, name: '贪吃蛇', emoji: '🐍', category: 'casual', hot: true, stars: 4, plays: '95k', path: 'games/snake/index.html' },
             { id: 4, name: 'Flappy Bird', emoji: '🐦', category: 'casual', hot: true, stars: 5, plays: '150k', path: 'games/flappy-bird/index.html' },
             { id: 5, name: '2048', emoji: '🔢', category: 'puzzle', hot: true, stars: 5, plays: '220k', path: 'games/2048/index.html' },
             { id: 6, name: '坦克大战', emoji: '🛡️', category: 'action', hot: true, stars: 5, plays: '140k', path: 'games/tank-battle/index.html' },
-            { id: 7, name: '飞机大战', emoji: '✈️', category: 'action', hot: false, stars: 4, plays: '80k', path: 'games/plane-war/index.html' },
             { id: 8, name: '打砖块', emoji: '🎾', category: 'casual', hot: false, stars: 4, plays: '65k', path: 'games/breakout/index.html' },
             { id: 9, name: '扫雷', emoji: '💣', category: 'puzzle', hot: false, stars: 4, plays: '110k', path: 'games/minesweeper/index.html' },
             { id: 10, name: '五子棋', emoji: '⚫', category: 'strategy', hot: false, stars: 4, plays: '75k', path: 'games/gobang/index.html' },
@@ -1441,9 +1421,7 @@
                 action: '动作游戏',
                 puzzle: '益智游戏',
                 casual: '休闲游戏',
-                strategy: '策略游戏',
-                racing: '赛车游戏',
-                sports: '体育游戏'
+                strategy: '策略游戏'
             };
             document.getElementById('sectionTitle').textContent = titles[category] || '游戏列表';
             renderGames(category);

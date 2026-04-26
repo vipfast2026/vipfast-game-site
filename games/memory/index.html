@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>记忆配对 - 糖果乐园</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+            color: white;
+            font-size: 18px;
+        }
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            max-width: 400px;
+            width: 100%;
+        }
+        .card {
+            aspect-ratio: 1;
+            background: linear-gradient(145deg, #2d3748, #1a202c);
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            transition: transform 0.3s, background 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .card:hover { transform: translateY(-5px); }
+        .card.flipped {
+            background: linear-gradient(145deg, #ffffff, #e2e8f0);
+            transform: rotateY(180deg);
+        }
+        .card.matched {
+            background: linear-gradient(145deg, #48bb78, #38a169);
+            animation: pulse 0.5s;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .btn:hover { transform: scale(1.05); }
+        .win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 100;
+        }
+        .win-message h2 { color: #667eea; margin-bottom: 15px; }
+        .win-message p { color: #4a5568; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🎴 记忆配对</h1>
+    <div class="stats">
+        <span>步数：<strong id="moves">0</strong></span>
+        <span>时间：<strong id="timer">0:00</strong></span>
+    </div>
+    <div class="game-board" id="board"></div>
+    <button class="btn" onclick="initGame()">🔄 重新开始</button>
+
+    <div class="win-message" id="winMsg">
+        <h2>🎉 恭喜你!</h2>
+        <p>用了 <span id="finalMoves">0</span> 步，耗时 <span id="finalTime">0:00</span></p>
+        <button class="btn" onclick="initGame()">再玩一次</button>
+    </div>
+
+    <script>
+        const emojis = ['🍎', '🍊', '🍋', '🍇', '🍓', '🍑', '🍒', '🥝'];
+        let cards = [];
+        let flipped = [];
+        let matched = [];
+        let moves = 0;
+        let startTime = null;
+        let timerInterval = null;
+        let canFlip = true;
+
+        function shuffle(arr) {
+            const newArr = [...arr];
+            for (let i = newArr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            return newArr;
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const delta = Math.floor((Date.now() - startTime) / 1000);
+                const mins = Math.floor(delta / 60);
+                const secs = delta % 60;
+                document.getElementById('timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+        }
+
+        function initGame() {
+            stopTimer();
+            document.getElementById('winMsg').style.display = 'none';
+            cards = shuffle([...emojis, ...emojis]);
+            flipped = [];
+            matched = [];
+            moves = 0;
+            canFlip = true;
+            document.getElementById('moves').textContent = moves;
+            document.getElementById('timer').textContent = '0:00';
+
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            cards.forEach((emoji, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.index = index;
+                card.dataset.emoji = emoji;
+                card.onclick = () => flipCard(index);
+                board.appendChild(card);
+            });
+        }
+
+        function flipCard(index) {
+            if (!canFlip || flipped.includes(index) || matched.includes(index)) return;
+
+            if (!startTime) startTimer();
+
+            flipped.push(index);
+            const card = document.querySelector(`[data-index="${index}"]`);
+            card.classList.add('flipped');
+            card.textContent = cards[index];
+
+            if (flipped.length === 2) {
+                moves++;
+                document.getElementById('moves').textContent = moves;
+                checkMatch();
+            }
+        }
+
+        function checkMatch() {
+            canFlip = false;
+            const [i1, i2] = flipped;
+            const match = cards[i1] === cards[i2];
+
+            if (match) {
+                matched.push(...flipped);
+                document.querySelector(`[data-index="${i1}"]`).classList.add('matched');
+                document.querySelector(`[data-index="${i2}"]`).classList.add('matched');
+                flipped = [];
+                canFlip = true;
+
+                if (matched.length === cards.length) {
+                    stopTimer();
+                    document.getElementById('finalMoves').textContent = moves;
+                    document.getElementById('finalTime').textContent = document.getElementById('timer').textContent;
+                    document.getElementById('winMsg').style.display = 'block';
+                }
+            } else {
+                setTimeout(() => {
+                    flipped.forEach(i => {
+                        const card = document.querySelector(`[data-index="${i}"]`);
+                        card.classList.remove('flipped');
+                        card.textContent = '';
+                    });
+                    flipped = [];
+                    canFlip = true;
+                }, 1000);
+            }
+        }
+
+        initGame();
+    </script>
+</body>
+</html>

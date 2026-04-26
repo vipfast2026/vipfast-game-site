@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>井字棋 - 糖果乐园</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        h1 { color: #fff; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .info {
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        .scores {
+            display: flex;
+            gap: 30px;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+            background: rgba(255,255,255,0.2);
+            padding: 5px;
+            border-radius: 10px;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 8px;
+            font-size: 60px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .cell:hover { transform: scale(1.05); background: #fff; }
+        .cell.taken { cursor: not-allowed; }
+        .cell.winner { background: #ffd700; animation: winPulse 0.5s ease-in-out infinite alternate; }
+        @keyframes winPulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+        .btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+        .btn:hover { background: rgba(255,255,255,0.4); }
+        .mode-select {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .mode-btn {
+            padding: 8px 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .mode-btn.active { background: rgba(255,255,255,0.5); }
+        .win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .win-message h2 { color: #667eea; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <h1>⭕ 井字棋</h1>
+    <div class="mode-select">
+        <button class="mode-btn active" onclick="setMode('pve')">🆚 人机对战</button>
+        <button class="mode-btn" onclick="setMode('pvp')">👥 双人对战</button>
+    </div>
+    <div class="scores">
+        <span>玩家 (X): <strong id="playerScore">0</strong></span>
+        <span>电脑 (O): <strong id="computerScore">0</strong></span>
+    </div>
+    <div class="info" id="info">玩家 X 的回合</div>
+    <div class="board" id="board"></div>
+    <button class="btn" onclick="initGame()">🔄 新游戏</button>
+
+    <div class="win-message" id="winMsg">
+        <h2 id="winnerText">游戏结束!</h2>
+        <button class="btn" onclick="initGame()">再来一局</button>
+    </div>
+
+    <script>
+        let board = [];
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let mode = 'pve'; // pve 或 pvp
+        let playerScore = 0;
+        let computerScore = 0;
+        let winCombo = null;
+
+        const winConditions = [
+            [0,1,2], [3,4,5], [6,7,8], // 横
+            [0,3,6], [1,4,7], [2,5,8], // 竖
+            [0,4,8], [2,4,6]           // 斜
+        ];
+
+        function setMode(newMode) {
+            mode = newMode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            playerScore = 0;
+            computerScore = 0;
+            updateScores();
+            initGame();
+        }
+
+        function updateScores() {
+            document.getElementById('playerScore').textContent = playerScore;
+            document.getElementById('computerScore').textContent = computerScore;
+        }
+
+        function initGame() {
+            board = ['', '', '', '', '', '', '', '', ''];
+            currentPlayer = 'X';
+            gameActive = true;
+            winCombo = null;
+            document.getElementById('winMsg').style.display = 'none';
+            document.getElementById('info').textContent = '玩家 X 的回合';
+            render();
+        }
+
+        function render() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            board.forEach((cell, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'cell' + (cell ? ' taken' : '');
+                if (winCombo && winCombo.includes(i)) btn.classList.add('winner');
+                btn.textContent = cell === 'X' ? '❌' : cell === 'O' ? '⭕' : '';
+                btn.onclick = () => makeMove(i);
+                boardEl.appendChild(btn);
+            });
+        }
+
+        function makeMove(i) {
+            if (!gameActive || board[i]) return;
+
+            board[i] = currentPlayer;
+            render();
+
+            const result = checkWin();
+            if (result) {
+                gameActive = false;
+                if (result === 'win') {
+                    if (mode === 'pve' && currentPlayer === 'O') {
+                        computerScore++;
+                        showWin('电脑获胜!');
+                    } else {
+                        playerScore++;
+                        showWin(`玩家 ${currentPlayer} 获胜!`);
+                    }
+                } else {
+                    showWin('平局!');
+                }
+                updateScores();
+                return;
+            }
+
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            document.getElementById('info').textContent = `玩家 ${currentPlayer} 的回合`;
+
+            if (mode === 'pve' && currentPlayer === 'O' && gameActive) {
+                setTimeout(computerMove, 500);
+            }
+        }
+
+        function computerMove() {
+            // 简单 AI：先找能赢的位置，再找需要堵的位置，最后选随机
+            const winMove = findBestMove('O');
+            if (winMove !== null) {
+                makeMove(winMove);
+                return;
+            }
+            const blockMove = findBestMove('X');
+            if (blockMove !== null) {
+                makeMove(blockMove);
+                return;
+            }
+            // 随机空位
+            const empty = board.map((v, i) => v === '' ? i : null).filter(v => v !== null);
+            makeMove(empty[Math.floor(Math.random() * empty.length)]);
+        }
+
+        function findBestMove(player) {
+            for (const [a, b, c] of winConditions) {
+                const vals = [board[a], board[b], board[c]];
+                const count = vals.filter(v => v === player).length;
+                const empty = vals.filter(v => v === '').length;
+                if (count === 2 && empty === 1) {
+                    if (board[a] === '') return a;
+                    if (board[b] === '') return b;
+                    if (board[c] === '') return c;
+                }
+            }
+            return null;
+        }
+
+        function checkWin() {
+            for (const [a, b, c] of winConditions) {
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    winCombo = [a, b, c];
+                    render();
+                    return 'win';
+                }
+            }
+            if (!board.includes('')) {
+                return 'draw';
+            }
+            return null;
+        }
+
+        function showWin(text) {
+            document.getElementById('winnerText').textContent = text;
+            document.getElementById('winMsg').style.display = 'block';
+        }
+
+        initGame();
+    </script>
+</body>
+</html>

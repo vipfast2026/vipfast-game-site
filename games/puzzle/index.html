@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拼图游戏 - 糖果乐园</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        h1 { color: #fff; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .stats {
+            display: flex;
+            gap: 20px;
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .game-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+            background: rgba(255,255,255,0.2);
+            padding: 5px;
+            border-radius: 10px;
+        }
+        .tile {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(145deg, #fff, #e0e0e0);
+            border: none;
+            border-radius: 8px;
+            font-size: 40px;
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .tile:hover { transform: scale(1.02); }
+        .tile.empty { background: transparent; box-shadow: none; cursor: default; }
+        .tile.correct { background: linear-gradient(145deg, #48bb78, #38a169); color: white; }
+        .preview {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .preview h3 { color: #fff; margin-bottom: 10px; font-size: 14px; }
+        .preview-board {
+            display: grid;
+            grid-template-columns: repeat(3, 30px);
+            grid-template-rows: repeat(3, 30px);
+            gap: 2px;
+        }
+        .preview-tile {
+            width: 30px;
+            height: 30px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+        .btn:hover { background: rgba(255,255,255,0.4); }
+        .win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .win-message h2 { color: #11998e; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <h1>🧩 拼图游戏</h1>
+    <div class="stats">
+        <span>移动：<strong id="moves">0</strong></span>
+        <span>时间：<strong id="timer">0:00</strong></span>
+    </div>
+    <div class="game-container">
+        <div class="board" id="board"></div>
+        <div class="preview">
+            <h3>目标</h3>
+            <div class="preview-board" id="preview"></div>
+        </div>
+    </div>
+    <button class="btn" onclick="initGame()">🔄 新游戏</button>
+
+    <div class="win-message" id="winMsg">
+        <h2>🎉 完成了!</h2>
+        <p>用了 <span id="finalMoves">0</span> 步，耗时 <span id="finalTime">0:00</span></p>
+        <button class="btn" onclick="initGame()">再玩一次</button>
+    </div>
+
+    <script>
+        const tiles = [1, 2, 3, 4, 5, 6, 7, 8, 0]; // 0 是空位
+        const solved = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+        let moves = 0;
+        let startTime = null;
+        let timerInterval = null;
+        let gameActive = false;
+
+        function shuffle() {
+            // 通过随机移动来打乱，确保有解
+            let arr = [...solved];
+            let emptyIdx = 8;
+            let lastIdx = -1;
+            for (let i = 0; i < 100; i++) {
+                const neighbors = getNeighbors(emptyIdx);
+                const validNeighbors = neighbors.filter(n => n !== lastIdx);
+                const pick = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+                [arr[emptyIdx], arr[pick]] = [arr[pick], arr[emptyIdx]];
+                lastIdx = emptyIdx;
+                emptyIdx = pick;
+            }
+            return arr;
+        }
+
+        function getNeighbors(idx) {
+            const row = Math.floor(idx / 3);
+            const col = idx % 3;
+            const neighbors = [];
+            if (row > 0) neighbors.push(idx - 3);
+            if (row < 2) neighbors.push(idx + 3);
+            if (col > 0) neighbors.push(idx - 1);
+            if (col < 2) neighbors.push(idx + 1);
+            return neighbors;
+        }
+
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const delta = Math.floor((Date.now() - startTime) / 1000);
+                const mins = Math.floor(delta / 60);
+                const secs = delta % 60;
+                document.getElementById('timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+        }
+
+        function initGame() {
+            document.getElementById('winMsg').style.display = 'none';
+            tiles.splice(0, tiles.length, ...shuffle());
+            moves = 0;
+            document.getElementById('moves').textContent = moves;
+            document.getElementById('timer').textContent = '0:00';
+            stopTimer();
+            gameActive = true;
+            render();
+            renderPreview();
+        }
+
+        function render() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            tiles.forEach((tile, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'tile' + (tile === 0 ? ' empty' : '');
+                const isCorrect = tile !== 0 && tile === solved[i];
+                if (isCorrect) btn.classList.add('correct');
+                btn.textContent = tile === 0 ? '' : tile;
+                btn.onclick = () => moveTile(i);
+                board.appendChild(btn);
+            });
+        }
+
+        function renderPreview() {
+            const preview = document.getElementById('preview');
+            preview.innerHTML = '';
+            solved.forEach(tile => {
+                const div = document.createElement('div');
+                div.className = 'preview-tile';
+                div.textContent = tile === 0 ? '' : tile;
+                preview.appendChild(div);
+            });
+        }
+
+        function moveTile(idx) {
+            if (!gameActive || tiles[idx] === 0) return;
+
+            const emptyIdx = tiles.indexOf(0);
+            const neighbors = getNeighbors(emptyIdx);
+
+            if (!neighbors.includes(idx)) return;
+
+            if (!startTime) startTimer();
+
+            [tiles[idx], tiles[emptyIdx]] = [tiles[emptyIdx], tiles[idx]];
+            moves++;
+            document.getElementById('moves').textContent = moves;
+            render();
+
+            if (checkWin()) {
+                gameActive = false;
+                stopTimer();
+                document.getElementById('finalMoves').textContent = moves;
+                document.getElementById('finalTime').textContent = document.getElementById('timer').textContent;
+                document.getElementById('winMsg').style.display = 'block';
+            }
+        }
+
+        function checkWin() {
+            for (let i = 0; i < tiles.length; i++) {
+                if (tiles[i] !== solved[i]) return false;
+            }
+            return true;
+        }
+
+        initGame();
+    </script>
+</body>
+</html>

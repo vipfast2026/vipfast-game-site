@@ -23,6 +23,16 @@
             color: white;
         }
 
+        /* iframe 嵌入时的样式 */
+        body.iframe-mode {
+            padding: 0;
+            background: transparent;
+        }
+
+        body.iframe-mode .game-container {
+            box-shadow: none;
+            border: none;
+        }
         .game-wrapper {
             display: flex;
             gap: 20px;
@@ -352,6 +362,10 @@
         const ENEMY_BASE_SPEED = 2;
 
         // 游戏状态
+        if (window.self !== window.top) {
+            document.body.classList.add('iframe-mode');
+        }
+
         let player = {
             x: canvas.width / 2 - PLAYER_WIDTH / 2,
             y: canvas.height - PLAYER_HEIGHT - 20,

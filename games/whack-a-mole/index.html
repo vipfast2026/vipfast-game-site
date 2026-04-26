@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打地鼠 - 糖果乐园</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        body.iframe-mode {
+            padding: 0;
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+            min-height: 100vh;
+        }
+        body.iframe-mode h1, body.iframe-mode .instructions { display: none; }
+        h1 { color: #fff; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .stats {
+            display: flex;
+            gap: 30px;
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 10px;
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 15px;
+        }
+        .hole {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(180deg, #3d2914 0%, #5c4033 100%);
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.5);
+        }
+        .mole {
+            position: absolute;
+            bottom: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 50px;
+            transition: bottom 0.3s;
+            user-select: none;
+        }
+        .hole.active .mole { bottom: 10%; }
+        .hole.hit .mole {
+            animation: hit 0.2s;
+        }
+        @keyframes hit {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.2); }
+        }
+        .btn {
+            margin-top: 15px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .btn:hover { background: rgba(255,255,255,0.4); }
+        .difficulty {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .diff-btn {
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .diff-btn.active { background: rgba(255,255,255,0.5); }
+    </style>
+</head>
+<body>
+    <h1>🔨 打地鼠</h1>
+    <div class="difficulty">
+        <button class="diff-btn" onclick="setDifficulty('easy')">简单</button>
+        <button class="diff-btn active" onclick="setDifficulty('normal')">普通</button>
+        <button class="diff-btn" onclick="setDifficulty('hard')">困难</button>
+    </div>
+    <div class="stats">
+        <span>得分：<strong id="score">0</strong></span>
+        <span>时间：<strong id="time">30</strong>s</span>
+    </div>
+    <div class="game-container" style="position: relative;">
+        <div class="game-board">
+            <div class="hole" data-hole="0"><div class="mole">🐹</div></div>
+            <div class="hole" data-hole="1"><div class="mole">🐹</div></div>
+            <div class="hole" data-hole="2"><div class="mole">🐹</div></div>
+            <div class="hole" data-hole="3"><div class="mole">🐹</div></div>
+            <div class="hole" data-hole="4"><div class="mole">🐹</div></div>
+            <div class="hole" data-hole="5"><div class="mole">🐹</div></div>
+            <div class="hole" data-hole="6"><div class="mole">🐹</div></div>
+            <div class="hole" data-hole="7"><div class="mole">🐹</div></div>
+            <div class="hole" data-hole="8"><div class="mole">🐹</div></div>
+        </div>
+        <button class="btn" onclick="startGame()">▶️ 开始游戏</button>
+    </div>
+
+    <script>
+        // 检测是否在 iframe 中
+        if (window.self !== window.top) {
+            document.body.classList.add('iframe-mode');
+        }
+
+        let score = 0;
+        let timeLeft = 30;
+        let gameActive = false;
+        let moleTimer = null;
+        let gameTimer = null;
+        let lastHole = -1;
+        let difficulty = { easy: 1500, normal: 1000, hard: 600 };
+        let speed = difficulty.normal;
+
+        // 音效系统 - 使用 Web Audio API
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            switch (type) {
+                case 'hit':
+                    // 击打音效 - 短促的高音
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'square';
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                    break;
+                case 'pop':
+                    // 地鼠出现音效 - 上升的音调
+                    oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.15);
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.15);
+                    break;
+                case 'start':
+                    // 开始游戏音效 - 上升的琶音
+                    playNote(440, audioCtx.currentTime, 0.1);
+                    playNote(554, audioCtx.currentTime + 0.1, 0.1);
+                    playNote(659, audioCtx.currentTime + 0.2, 0.2);
+                    break;
+                case 'gameover':
+                    // 游戏结束音效 - 下降的音调
+                    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.5);
+                    oscillator.type = 'triangle';
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.5);
+                    break;
+            }
+        }
+
+        function playNote(freq, time, duration) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = freq;
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.2, time);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, time + duration);
+            oscillator.start(time);
+            oscillator.stop(time + duration);
+        }
+
+        function setDifficulty(level) {
+            document.querySelectorAll('.diff-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            speed = difficulty[level];
+        }
+
+        function randomHole() {
+            const holes = document.querySelectorAll('.hole');
+            let idx;
+            do {
+                idx = Math.floor(Math.random() * holes.length);
+            } while (idx === lastHole);
+            lastHole = idx;
+            return holes[idx];
+        }
+
+        function peep() {
+            if (!gameActive) return;
+
+            const hole = randomHole();
+            hole.classList.add('active');
+            playSound('pop');
+
+            setTimeout(() => {
+                hole.classList.remove('active');
+                hole.classList.remove('hit');
+                if (gameActive) peep();
+            }, 400 + Math.random() * speed * 0.5);
+        }
+
+        function startGame() {
+            score = 0;
+            timeLeft = 30;
+            gameActive = true;
+            document.getElementById('score').textContent = score;
+            document.getElementById('time').textContent = timeLeft;
+            document.querySelector('.btn').style.display = 'none';
+
+            playSound('start');
+            peep();
+
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('time').textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(gameTimer);
+            clearTimeout(moleTimer);
+            document.querySelectorAll('.hole').forEach(hole => {
+                hole.classList.remove('active', 'hit');
+            });
+            playSound('gameover');
+            // 在 iframe 模式下使用游戏内面板显示分数
+            if (window.self !== window.top) {
+                showGamePanel();
+            } else {
+                setTimeout(() => {
+                    alert(`游戏结束！你的得分是：${score}`);
+                }, 600);
+            }
+        }
+
+        function showGamePanel() {
+            // 创建游戏结束面板
+            const panel = document.createElement('div');
+            panel.id = 'gameOverPanel';
+            panel.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0,0,0,0.9);
+                padding: 30px;
+                border-radius: 20px;
+                text-align: center;
+                color: white;
+                z-index: 100;
+            `;
+            panel.innerHTML = `
+                <h2 style="color: #f1c40f; margin-bottom: 15px;">🎮 游戏结束!</h2>
+                <p style="font-size: 18px;">得分：<strong>${score}</strong></p>
+                <button onclick="resetGame()" style="
+                    margin-top: 20px;
+                    padding: 10px 25px;
+                    font-size: 16px;
+                    background: linear-gradient(135deg, #f1c40f, #e67e22);
+                    color: white;
+                    border: none;
+                    border-radius: 25px;
+                    cursor: pointer;
+                ">再来一局</button>
+            `;
+            document.querySelector('.game-container').appendChild(panel);
+        }
+
+        function resetGame() {
+            // 重置游戏状态
+            score = 0;
+            timeLeft = 30;
+            gameActive = true;
+            document.getElementById('score').textContent = score;
+            document.getElementById('time').textContent = timeLeft;
+            document.getElementById('gameOverPanel')?.remove();
+            document.querySelector('.btn').style.display = 'block';
+
+            playSound('start');
+            peep();
+
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('time').textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function bonk(e) {
+            if (!gameActive || !e.target.classList.contains('mole')) return;
+            const hole = e.target.parentElement;
+            if (!hole.classList.contains('active')) return;
+
+            score++;
+            document.getElementById('score').textContent = score;
+            hole.classList.add('hit');
+            hole.classList.remove('active');
+            e.target.textContent = '😵';
+            playSound('hit');
+            setTimeout(() => {
+                e.target.textContent = '🐹';
+            }, 500);
+        }
+
+        document.querySelectorAll('.hole').forEach(hole => {
+            hole.addEventListener('click', bonk);
+            hole.addEventListener('touchstart', bonk);
+        });
+    </script>
+</body>
+</html>

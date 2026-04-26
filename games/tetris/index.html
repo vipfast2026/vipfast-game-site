@@ -23,6 +23,17 @@
             padding: 20px;
         }
 
+        /* iframe 嵌入时的样式 */
+        body.iframe-mode {
+            padding: 0;
+            background: transparent;
+        }
+
+        body.iframe-mode .game-wrapper {
+            box-shadow: none;
+            border: none;
+        }
+
         .game-wrapper {
             display: flex;
             gap: 30px;
@@ -369,6 +380,10 @@
         ];
 
         // 游戏状态
+        if (window.self !== window.top) {
+            document.body.classList.add('iframe-mode');
+        }
+
         let board = [];
         let currentPiece = null;
         let nextPiece = null;

@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>植物大战僵尸 - 糖果乐园</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            overflow: auto;
+        }
+
+        .game-wrapper {
+            width: 100%;
+            max-width: 1000px;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 25px;
+            border: 2px solid rgba(255,255,255,0.1);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 32px;
+            text-shadow: 0 0 20px rgba(100, 200, 100, 0.5);
+        }
+
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #2d5016, #1a3009);
+            border-radius: 15px;
+            margin-bottom: 15px;
+            border: 2px solid rgba(100, 255, 100, 0.3);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .sun-counter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .sun-icon {
+            width: 35px;
+            height: 35px;
+            background: radial-gradient(circle, #ffd700, #ff8c00);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            animation: sunPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes sunPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .wave-info {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .plant-selector {
+            display: flex;
+            gap: 8px;
+            padding: 10px 15px;
+            background: linear-gradient(135deg, #3d2817, #2a1a0f);
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 2px solid rgba(139, 90, 43, 0.5);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .plant-card {
+            width: 55px;
+            height: 70px;
+            background: linear-gradient(135deg, #4a6741, #2d4022);
+            border: 2px solid rgba(100, 255, 100, 0.4);
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .plant-card:hover:not(.disabled) {
+            transform: translateY(-5px);
+            border-color: rgba(100, 255, 100, 0.8);
+            box-shadow: 0 10px 20px rgba(0, 100, 0, 0.4);
+        }
+
+        .plant-card.selected {
+            border-color: #ffd700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+        }
+
+        .plant-card.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .plant-card .emoji {
+            font-size: 28px;
+        }
+
+        .plant-card .cost {
+            font-size: 11px;
+            color: #ffd700;
+            font-weight: 700;
+        }
+
+        .canvas-container {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: crosshair;
+            background: #1a472a;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            font-size: 15px;
+            font-weight: 700;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn-start:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.6);
+        }
+
+        .btn-start:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-restart {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-restart:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6);
+        }
+
+        .btn-sound {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-sound:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .game-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 50px;
+            border-radius: 30px;
+            text-align: center;
+            border: 3px solid;
+            box-shadow: 0 0 60px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 1000;
+            min-width: 400px;
+        }
+
+        .game-message h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        .game-message p {
+            color: #ccc;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .game-over {
+            border-color: rgba(255, 100, 100, 0.5);
+            box-shadow: 0 0 60px rgba(255, 0, 0, 0.3);
+        }
+
+        .game-over h2 {
+            color: #ff6b6b;
+            text-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+        }
+
+        .game-win {
+            border-color: rgba(100, 255, 100, 0.5);
+            box-shadow: 0 0 60px rgba(100, 255, 100, 0.3);
+        }
+
+        .game-win h2 {
+            color: #4CAF50;
+            text-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
+        }
+
+        .tutorial {
+            background: rgba(0,0,0,0.3);
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-top: 15px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .tutorial strong {
+            color: #4CAF50;
+        }
+
+        @media (max-width: 768px) {
+            .game-wrapper {
+                padding: 15px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .plant-card {
+                width: 50px;
+                height: 65px;
+            }
+            .plant-card .emoji {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <h1>🌻 植物大战僵尸 🧟</h1>
+
+        <div class="info-bar">
+            <div class="sun-counter">
+                <div class="sun-icon"></div>
+                <span id="sunCount">150</span>
+            </div>
+            <div class="wave-info">
+                波次：<span id="waveNum">1</span>/5 | 僵尸：<span id="zombieCount">0</span>
+            </div>
+        </div>
+
+        <div class="plant-selector" id="plantSelector"></div>
+
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="900" height="500"></canvas>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-start" id="startBtn" onclick="startGame()">▶ 开始游戏</button>
+            <button class="btn btn-restart" onclick="restartGame()">🔄 重新开始</button>
+            <button class="btn btn-sound" id="soundBtn" onclick="toggleSound()">🔊 音效开</button>
+        </div>
+
+        <div class="tutorial">
+            <strong>游戏玩法：</strong>选择植物 → 点击草地放置 → 阻止僵尸到达左侧！<br>
+            💰 点击金色阳光收集 | ☁️ 天空会掉落阳光 | 🌻 向日葵生产阳光
+        </div>
+    </div>
+
+    <div class="game-message game-over" id="gameOver">
+        <h2>💀 游戏结束!</h2>
+        <p>僵尸吃掉了你的脑子!</p>
+        <button class="btn btn-restart" onclick="restartGame()">再来一局</button>
+    </div>
+
+    <div class="game-message game-win" id="gameWin">
+        <h2>🏆 胜利!</h2>
+        <p>你成功击退了所有僵尸!</p>
+        <button class="btn btn-start" onclick="restartGame()">再玩一次</button>
+    </div>
+
+    <script>
+        // ========== 游戏配置 ==========
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const GRID_COLS = 9;
+        const GRID_ROWS = 5;
+        const CELL_SIZE = 90;
+        const GRID_OFFSET_X = 50;
+        const GRID_OFFSET_Y = 50;
+
+        // ========== 音效系统 ==========
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled || !audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            switch(type) {
+                case 'shoot':
+                    const shootOsc = audioCtx.createOscillator();
+                    const shootGain = audioCtx.createGain();
+                    shootOsc.connect(shootGain);
+                    shootGain.connect(audioCtx.destination);
+                    shootOsc.frequency.setValueAtTime(600, now);
+                    shootOsc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+                    shootGain.gain.setValueAtTime(0.2, now);
+                    shootGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    shootOsc.start(now);
+                    shootOsc.stop(now + 0.1);
+                    break;
+
+                case 'sun':
+                    const sunOsc = audioCtx.createOscillator();
+                    const sunGain = audioCtx.createGain();
+                    sunOsc.connect(sunGain);
+                    sunGain.connect(audioCtx.destination);
+                    sunOsc.type = 'sine';
+                    sunOsc.frequency.setValueAtTime(800, now);
+                    sunOsc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+                    sunGain.gain.setValueAtTime(0.15, now);
+                    sunGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    sunOsc.start(now);
+                    sunOsc.stop(now + 0.3);
+                    break;
+
+                case 'hit':
+                    const hitOsc = audioCtx.createOscillator();
+                    const hitGain = audioCtx.createGain();
+                    hitOsc.connect(hitGain);
+                    hitGain.connect(audioCtx.destination);
+                    hitOsc.frequency.setValueAtTime(150, now);
+                    hitOsc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+                    hitGain.gain.setValueAtTime(0.3, now);
+                    hitGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    hitOsc.start(now);
+                    hitOsc.stop(now + 0.15);
+                    break;
+
+                case 'explode':
+                    const expOsc1 = audioCtx.createOscillator();
+                    const expOsc2 = audioCtx.createOscillator();
+                    const expGain = audioCtx.createGain();
+                    expOsc1.connect(expGain);
+                    expOsc2.connect(expGain);
+                    expGain.connect(audioCtx.destination);
+                    expOsc1.type = 'sawtooth';
+                    expOsc2.type = 'square';
+                    expOsc1.frequency.setValueAtTime(100, now);
+                    expOsc2.frequency.setValueAtTime(80, now);
+                    expOsc1.frequency.exponentialRampToValueAtTime(30, now + 0.3);
+                    expOsc2.frequency.exponentialRampToValueAtTime(20, now + 0.3);
+                    expGain.gain.setValueAtTime(0.4, now);
+                    expGain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    expOsc1.start(now);
+                    expOsc2.start(now);
+                    expOsc1.stop(now + 0.4);
+                    expOsc2.stop(now + 0.4);
+                    break;
+
+                case 'plant':
+                    const plantOsc = audioCtx.createOscillator();
+                    const plantGain = audioCtx.createGain();
+                    plantOsc.connect(plantGain);
+                    plantGain.connect(audioCtx.destination);
+                    plantOsc.type = 'sine';
+                    plantOsc.frequency.setValueAtTime(400, now);
+                    plantOsc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
+                    plantGain.gain.setValueAtTime(0.2, now);
+                    plantGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    plantOsc.start(now);
+                    plantOsc.stop(now + 0.2);
+                    break;
+
+                case 'zombie_die':
+                    const zdOsc = audioCtx.createOscillator();
+                    const zdGain = audioCtx.createGain();
+                    zdOsc.connect(zdGain);
+                    zdGain.connect(audioCtx.destination);
+                    zdOsc.type = 'sawtooth';
+                    zdOsc.frequency.setValueAtTime(200, now);
+                    zdOsc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+                    zdGain.gain.setValueAtTime(0.25, now);
+                    zdGain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    zdOsc.start(now);
+                    zdOsc.stop(now + 0.3);
+                    break;
+
+                case 'win':
+                    [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50].forEach((freq, i) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + i * 0.15);
+                        gain.gain.setValueAtTime(0.2, now + i * 0.15);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.4);
+                        osc.start(now + i * 0.15);
+                        osc.stop(now + i * 0.15 + 0.4);
+                    });
+                    break;
+
+                case 'lose':
+                    [400, 350, 300, 250, 200, 150].forEach((freq, i) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + i * 0.2);
+                        gain.gain.setValueAtTime(0.25, now + i * 0.2);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.2 + 0.3);
+                        osc.start(now + i * 0.2);
+                        osc.stop(now + i * 0.2 + 0.3);
+                    });
+                    break;
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundBtn');
+            btn.textContent = soundEnabled ? '🔊 音效开' : '🔇 音效关';
+        }
+
+        // ========== 植物定义 ==========
+        const PLANT_TYPES = {
+            sunflower: {
+                id: 'sunflower',
+                name: '向日葵',
+                emoji: '🌻',
+                cost: 50,
+                health: 300,
+                sunInterval: 8000,
+                color: '#FFD700'
+            },
+            peaShooter: {
+                id: 'peaShooter',
+                name: '豌豆射手',
+                emoji: '🌱',
+                cost: 100,
+                health: 300,
+                damage: 20,
+                fireInterval: 1500,
+                projectileColor: '#90EE90'
+            },
+            wallnut: {
+                id: 'wallnut',
+                name: '坚果墙',
+                emoji: '🥜',
+                cost: 50,
+                health: 2000,
+                color: '#8B4513'
+            },
+            cherryBomb: {
+                id: 'cherryBomb',
+                name: '樱桃炸弹',
+                emoji: '🍒',
+                cost: 150,
+                health: 1000,
+                damage: 1800,
+                explodeDelay: 1000,
+                explodeRadius: 1.5
+            },
+            snowPea: {
+                id: 'snowPea',
+                name: '寒冰射手',
+                emoji: '❄️',
+                cost: 175,
+                health: 300,
+                damage: 20,
+                fireInterval: 1500,
+                slowEffect: 0.5,
+                projectileColor: '#87CEEB'
+            },
+            repeater: {
+                id: 'repeater',
+                name: '双重射手',
+                emoji: '🌿',
+                cost: 200,
+                health: 300,
+                damage: 20,
+                fireInterval: 1500,
+                projectileCount: 2,
+                projectileColor: '#90EE90'
+            }
+        };
+
+        // ========== 僵尸定义 ==========
+        const ZOMBIE_TYPES = {
+            normal: {
+                name: '普通僵尸',
+                emoji: '🧟',
+                health: 200,
+                damage: 1,
+                speed: 0.3,
+                color: '#5a7d5a'
+            },
+            conehead: {
+                name: '路障僵尸',
+                emoji: '🧟',
+                health: 560,
+                damage: 1,
+                speed: 0.28,
+                color: '#8B4513',
+                hasCone: true
+            },
+            buckethead: {
+                name: '铁桶僵尸',
+                emoji: '🧟',
+                health: 1300,
+                damage: 1,
+                speed: 0.25,
+                color: '#708090',
+                hasBucket: true
+            },
+            flag: {
+                name: '旗帜僵尸',
+                emoji: '🧟',
+                health: 200,
+                damage: 1,
+                speed: 0.35,
+                color: '#5a7d5a',
+                hasFlag: true
+            }
+        };
+
+        // ========== 游戏状态 ==========
+        let gameState = {
+            sun: 150,
+            wave: 1,
+            plants: [],
+            zombies: [],
+            projectiles: [],
+            suns: [],
+            explosions: [],
+            selectedPlant: null,
+            gameRunning: false,
+            gameOver: false,
+            lastTime: 0,
+            zombieSpawnTimer: 0,
+            zombieSpawnInterval: 5000,
+            waveZombies: 10,
+            zombiesSpawned: 0
+        };
+
+        let mouseX = 0, mouseY = 0;
+
+        // ========== 绘图函数 ==========
+
+        function drawGrid() {
+            for (let row = 0; row < GRID_ROWS; row++) {
+                for (let col = 0; col < GRID_COLS; col++) {
+                    const x = GRID_OFFSET_X + col * CELL_SIZE;
+                    const y = GRID_OFFSET_Y + row * CELL_SIZE;
+                    const grassColor = (row + col) % 2 === 0 ? '#2d5016' : '#3a6b1c';
+                    ctx.fillStyle = grassColor;
+                    ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+                }
+            }
+        }
+
+        function drawPlant(plant) {
+            const x = GRID_OFFSET_X + plant.col * CELL_SIZE + CELL_SIZE / 2;
+            const y = GRID_OFFSET_Y + plant.row * CELL_SIZE + CELL_SIZE / 2;
+
+            ctx.save();
+            ctx.shadowColor = plant.type.color || plant.color;
+            ctx.shadowBlur = 15;
+            ctx.font = '45px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(plant.type.emoji, x, y);
+            ctx.shadowBlur = 0;
+
+            if (plant.health < plant.type.health) {
+                const barWidth = 50;
+                const barHeight = 5;
+                const barX = x - barWidth / 2;
+                const barY = y + 30;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                const healthPercent = plant.health / plant.type.health;
+                const healthColor = healthPercent > 0.5 ? '#4CAF50' : healthPercent > 0.25 ? '#ff9800' : '#f44336';
+                ctx.fillStyle = healthColor;
+                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+            }
+            ctx.restore();
+        }
+
+        function drawZombie(zombie) {
+            const x = zombie.x + CELL_SIZE / 2;
+            const y = GRID_OFFSET_Y + zombie.row * CELL_SIZE + CELL_SIZE / 2;
+            const walkOffset = Math.sin(Date.now() / 200) * 3;
+
+            ctx.save();
+            ctx.font = '50px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            if (zombie.type.hasFlag) {
+                ctx.fillText('🚩', x + 15, y - 20);
+            }
+            ctx.fillText(zombie.type.emoji, x + walkOffset, y);
+
+            if (zombie.type.hasCone) {
+                ctx.fillStyle = '#FF6B6B';
+                ctx.beginPath();
+                ctx.moveTo(x - 10, y - 25);
+                ctx.lineTo(x + 10, y - 25);
+                ctx.lineTo(x, y - 45);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            if (zombie.type.hasBucket) {
+                ctx.fillStyle = '#708090';
+                ctx.fillRect(x - 12, y - 35, 24, 15);
+            }
+
+            const barWidth = 60;
+            const barHeight = 6;
+            const barX = x - barWidth / 2;
+            const barY = y - 40;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(barX, barY, barWidth, barHeight);
+            const healthPercent = zombie.health / zombie.type.health;
+            const healthColor = healthPercent > 0.5 ? '#4CAF50' : healthPercent > 0.25 ? '#ff9800' : '#f44336';
+            ctx.fillStyle = healthColor;
+            ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+
+            if (zombie.slowed) {
+                ctx.fillStyle = 'rgba(135, 206, 235, 0.4)';
+                ctx.beginPath();
+                ctx.arc(x, y, 30, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawProjectile(proj) {
+            ctx.save();
+            ctx.fillStyle = proj.type.projectileColor;
+            ctx.shadowColor = proj.type.projectileColor;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(proj.x, proj.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.beginPath();
+            ctx.arc(proj.x - 2, proj.y - 2, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+
+        function drawSun(sun) {
+            ctx.save();
+            const glow = Math.sin(Date.now() / 300) * 5;
+            const gradient = ctx.createRadialGradient(sun.x, sun.y, 0, sun.x, sun.y, 30);
+            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 140, 0, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 140, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(sun.x, sun.y, 30 + glow, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(sun.x, sun.y, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2 + Date.now() / 500;
+                ctx.beginPath();
+                ctx.moveTo(sun.x + Math.cos(angle) * 25, sun.y + Math.sin(angle) * 25);
+                ctx.lineTo(sun.x + Math.cos(angle) * 35, sun.y + Math.sin(angle) * 35);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawExplosion(explosion) {
+            ctx.save();
+            const progress = explosion.progress / explosion.duration;
+            const radius = explosion.radius * CELL_SIZE * (0.5 + progress * 0.5);
+            const alpha = 1 - progress;
+            const gradient = ctx.createRadialGradient(explosion.x, explosion.y, 0, explosion.x, explosion.y, radius);
+            gradient.addColorStop(0, `rgba(255, 100, 50, ${alpha * 0.8})`);
+            gradient.addColorStop(0.5, `rgba(255, 50, 0, ${alpha * 0.5})`);
+            gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(explosion.x, explosion.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = `rgba(255, 255, 100, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(explosion.x, explosion.y, radius * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawPlacementPreview() {
+            if (!gameState.selectedPlant) return;
+            const col = Math.floor((mouseX - GRID_OFFSET_X) / CELL_SIZE);
+            const row = Math.floor((mouseY - GRID_OFFSET_Y) / CELL_SIZE);
+            if (col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS) {
+                const x = GRID_OFFSET_X + col * CELL_SIZE;
+                const y = GRID_OFFSET_Y + row * CELL_SIZE;
+                const canPlace = canPlacePlant(row, col);
+                ctx.fillStyle = canPlace ? 'rgba(100, 255, 100, 0.3)' : 'rgba(255, 100, 100, 0.3)';
+                ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                ctx.strokeStyle = canPlace ? '#4CAF50' : '#f44336';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x + 5, y + 5, CELL_SIZE - 10, CELL_SIZE - 10);
+                ctx.font = '40px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.globalAlpha = 0.7;
+                ctx.fillText(gameState.selectedPlant.emoji, x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // ========== 游戏逻辑 ==========
+
+        function canPlacePlant(row, col) {
+            return !gameState.plants.some(p => p.row === row && p.col === col);
+        }
+
+        function placePlant(row, col) {
+            const plantType = gameState.selectedPlant;
+            if (!plantType) return;
+            const cost = PLANT_TYPES[plantType.id].cost;
+            if (gameState.sun < cost) return;
+            if (!canPlacePlant(row, col)) return;
+
+            gameState.sun -= cost;
+            updateSunDisplay();
+            playSound('plant');
+
+            const plant = {
+                ...PLANT_TYPES[plantType.id],
+                row,
+                col,
+                health: PLANT_TYPES[plantType.id].health,
+                lastAction: Date.now(),
+                id: plantType.id,
+                type: PLANT_TYPES[plantType.id]
+            };
+
+            if (plantType.id === 'cherryBomb') {
+                plant.explodeTimer = setTimeout(() => {
+                    createExplosion(col, row);
+                    gameState.plants = gameState.plants.filter(p => p !== plant);
+                }, plant.explodeDelay);
+            }
+
+            gameState.plants.push(plant);
+        }
+
+        function createExplosion(col, row) {
+            playSound('explode');
+            const x = GRID_OFFSET_X + col * CELL_SIZE + CELL_SIZE / 2;
+            const y = GRID_OFFSET_Y + row * CELL_SIZE + CELL_SIZE / 2;
+            gameState.explosions.push({
+                x, y, radius: 1.5, progress: 0, duration: 500, damage: 1800
+            });
+            gameState.zombies.forEach(zombie => {
+                const zombieCol = Math.floor((zombie.x - GRID_OFFSET_X) / CELL_SIZE);
+                if (Math.abs(zombieCol - col) <= 1 && zombie.row === row) {
+                    zombie.health -= 1800;
+                }
+            });
+        }
+
+        function spawnZombie() {
+            if (gameState.zombiesSpawned >= gameState.waveZombies) return;
+            const row = Math.floor(Math.random() * GRID_ROWS);
+            let zombieType;
+            const rand = Math.random();
+
+            if (gameState.wave === 1) {
+                zombieType = ZOMBIE_TYPES.normal;
+            } else if (gameState.wave === 2) {
+                zombieType = rand < 0.7 ? ZOMBIE_TYPES.normal : ZOMBIE_TYPES.conehead;
+            } else if (gameState.wave === 3) {
+                zombieType = rand < 0.5 ? ZOMBIE_TYPES.normal : rand < 0.8 ? ZOMBIE_TYPES.conehead : ZOMBIE_TYPES.flag;
+            } else {
+                zombieType = rand < 0.4 ? ZOMBIE_TYPES.normal : rand < 0.7 ? ZOMBIE_TYPES.conehead : rand < 0.9 ? ZOMBIE_TYPES.buckethead : ZOMBIE_TYPES.flag;
+            }
+
+            const zombie = {
+                ...zombieType,
+                type: zombieType,
+                row,
+                x: canvas.width,
+                health: zombieType.health,
+                slowed: false,
+                slowTimer: 0
+            };
+            gameState.zombies.push(zombie);
+            gameState.zombiesSpawned++;
+            updateZombieCount();
+        }
+
+        function updatePlants(deltaTime) {
+            const now = Date.now();
+            gameState.plants.forEach(plant => {
+                if (plant.id === 'sunflower') {
+                    if (now - plant.lastAction > plant.sunInterval) {
+                        plant.lastAction = now;
+                        const x = GRID_OFFSET_X + plant.col * CELL_SIZE + CELL_SIZE / 2;
+                        const y = GRID_OFFSET_Y + plant.row * CELL_SIZE + CELL_SIZE / 2;
+                        gameState.suns.push({ x, y, targetY: y - 50, value: 25, falling: true });
+                    }
+                } else if (plant.id === 'peaShooter' || plant.id === 'snowPea' || plant.id === 'repeater') {
+                    if (now - plant.lastAction > plant.fireInterval) {
+                        const hasZombie = gameState.zombies.some(z => z.row === plant.row && z.x > GRID_OFFSET_X + plant.col * CELL_SIZE);
+                        if (hasZombie) {
+                            plant.lastAction = now;
+                            playSound('shoot');
+                            const count = plant.projectileCount || 1;
+                            for (let i = 0; i < count; i++) {
+                                setTimeout(() => {
+                                    const projX = GRID_OFFSET_X + plant.col * CELL_SIZE + CELL_SIZE;
+                                    const projY = GRID_OFFSET_Y + plant.row * CELL_SIZE + CELL_SIZE / 2;
+                                    gameState.projectiles.push({
+                                        x: projX, y: projY, row: plant.row,
+                                        damage: plant.damage, type: plant,
+                                        slowEffect: plant.slowEffect || 0
+                                    });
+                                }, i * 300);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateZombies(deltaTime) {
+            gameState.zombies.forEach(zombie => {
+                if (zombie.slowed) {
+                    zombie.slowTimer -= deltaTime;
+                    if (zombie.slowTimer <= 0) zombie.slowed = false;
+                }
+                const speed = zombie.slowed ? zombie.type.speed * zombie.slowEffect : zombie.type.speed;
+                const zombieCol = Math.floor((zombie.x - GRID_OFFSET_X) / CELL_SIZE);
+                const blockingPlant = gameState.plants.find(p => p.row === zombie.row && p.col === zombieCol);
+
+                if (blockingPlant && zombie.x < GRID_OFFSET_X + (zombieCol + 1) * CELL_SIZE - 10) {
+                    blockingPlant.health -= zombie.type.damage;
+                    if (blockingPlant.health <= 0) {
+                        gameState.plants = gameState.plants.filter(p => p !== blockingPlant);
+                        playSound('hit');
+                    }
+                } else {
+                    zombie.x -= speed;
+                }
+
+                if (zombie.x < GRID_OFFSET_X - 20) {
+                    gameState.gameOver = true;
+                    playSound('lose');
+                    document.getElementById('gameOver').style.display = 'block';
+                }
+            });
+
+            const deadZombies = gameState.zombies.filter(z => z.health <= 0);
+            deadZombies.forEach(() => playSound('zombie_die'));
+            gameState.zombies = gameState.zombies.filter(z => z.health > 0);
+            updateZombieCount();
+        }
+
+        function updateProjectiles() {
+            gameState.projectiles.forEach(proj => {
+                proj.x += 8;
+                for (const zombie of gameState.zombies) {
+                    if (zombie.row === proj.row && Math.abs(zombie.x + CELL_SIZE/2 - proj.x) < 30) {
+                        zombie.health -= proj.damage;
+                        if (proj.slowEffect > 0) {
+                            zombie.slowed = true;
+                            zombie.slowTimer = 3000;
+                        }
+                        proj.hit = true;
+                        playSound('hit');
+                        break;
+                    }
+                }
+            });
+            gameState.projectiles = gameState.projectiles.filter(p => !p.hit && p.x < canvas.width);
+        }
+
+        function updateSuns() {
+            gameState.suns.forEach(sun => {
+                if (sun.falling && sun.y > sun.targetY) sun.y -= 2;
+                sun.lifetime = (sun.lifetime || 0) + 16;
+                if (sun.lifetime > 8000) sun.collected = true;
+            });
+            gameState.suns = gameState.suns.filter(s => !s.collected);
+        }
+
+        function updateExplosions(deltaTime) {
+            gameState.explosions.forEach(exp => {
+                exp.progress += deltaTime;
+            });
+            gameState.explosions = gameState.explosions.filter(e => e.progress < e.duration);
+        }
+
+        function checkWaveComplete() {
+            if (gameState.zombiesSpawned >= gameState.waveZombies && gameState.zombies.length === 0) {
+                if (gameState.wave >= 5) {
+                    gameState.gameRunning = false;
+                    playSound('win');
+                    document.getElementById('gameWin').style.display = 'block';
+                } else {
+                    gameState.wave++;
+                    gameState.waveZombies = 10 + gameState.wave * 5;
+                    gameState.zombiesSpawned = 0;
+                    gameState.zombieSpawnInterval = Math.max(2000, 5000 - gameState.wave * 500);
+                    updateWaveDisplay();
+                }
+            }
+        }
+
+        // ========== UI 更新 ==========
+
+        function updateSunDisplay() {
+            document.getElementById('sunCount').textContent = Math.floor(gameState.sun);
+        }
+
+        function updateWaveDisplay() {
+            document.getElementById('waveNum').textContent = gameState.wave;
+        }
+
+        function updateZombieCount() {
+            document.getElementById('zombieCount').textContent = gameState.zombies.length;
+        }
+
+        function createPlantSelector() {
+            const selector = document.getElementById('plantSelector');
+            selector.innerHTML = '';
+            Object.entries(PLANT_TYPES).forEach(([id, plant]) => {
+                const card = document.createElement('div');
+                card.className = 'plant-card';
+                card.innerHTML = `<span class="emoji">${plant.emoji}</span><span class="cost">${plant.cost}</span>`;
+                card.onclick = () => {
+                    if (gameState.sun >= plant.cost) {
+                        if (gameState.selectedPlant?.id === id) {
+                            gameState.selectedPlant = null;
+                            card.classList.remove('selected');
+                        } else {
+                            document.querySelectorAll('.plant-card').forEach(c => c.classList.remove('selected'));
+                            gameState.selectedPlant = { id, ...plant };
+                            card.classList.add('selected');
+                        }
+                    }
+                };
+                card.dataset.plantId = id;
+                selector.appendChild(card);
+            });
+        }
+
+        function updatePlantSelector() {
+            document.querySelectorAll('.plant-card').forEach(card => {
+                const plantId = card.dataset.plantId;
+                const plant = PLANT_TYPES[plantId];
+                card.classList.toggle('disabled', gameState.sun < plant.cost);
+            });
+        }
+
+        // ========== 事件监听 ==========
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (!gameState.gameRunning) return;
+            initAudio();
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // 收集阳光
+            gameState.suns.forEach(sun => {
+                const dist = Math.sqrt((x - sun.x) ** 2 + (y - sun.y) ** 2);
+                if (dist < 40) {
+                    gameState.sun += sun.value;
+                    sun.collected = true;
+                    updateSunDisplay();
+                    playSound('sun');
+                }
+            });
+
+            // 放置植物
+            const col = Math.floor((x - GRID_OFFSET_X) / CELL_SIZE);
+            const row = Math.floor((y - GRID_OFFSET_Y) / CELL_SIZE);
+            if (col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS) {
+                placePlant(row, col);
+            }
+        });
+
+        // ========== 游戏主循环 ==========
+
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - gameState.lastTime;
+            gameState.lastTime = timestamp;
+
+            if (gameState.gameRunning && !gameState.gameOver) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawGrid();
+
+                updatePlants(deltaTime);
+                updateZombies(deltaTime);
+                updateProjectiles();
+                updateSuns();
+                updateExplosions(deltaTime);
+
+                gameState.zombieSpawnTimer += deltaTime;
+                if (gameState.zombieSpawnTimer > gameState.zombieSpawnInterval) {
+                    gameState.zombieSpawnTimer = 0;
+                    spawnZombie();
+                }
+
+                gameState.plants.forEach(drawPlant);
+                gameState.zombies.forEach(drawZombie);
+                gameState.projectiles.forEach(drawProjectile);
+                gameState.suns.forEach(drawSun);
+                gameState.explosions.forEach(drawExplosion);
+                drawPlacementPreview();
+
+                updatePlantSelector();
+                checkWaveComplete();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ========== 游戏控制 ==========
+
+        function startGame() {
+            if (gameState.gameRunning) return;
+            initAudio();
+            gameState.gameRunning = true;
+            gameState.gameOver = false;
+            document.getElementById('startBtn').textContent = '▶ 游戏中...';
+            document.getElementById('startBtn').disabled = true;
+        }
+
+        function restartGame() {
+            gameState = {
+                sun: 150,
+                wave: 1,
+                plants: [],
+                zombies: [],
+                projectiles: [],
+                suns: [],
+                explosions: [],
+                selectedPlant: null,
+                gameRunning: false,
+                gameOver: false,
+                lastTime: performance.now(),
+                zombieSpawnTimer: 0,
+                zombieSpawnInterval: 5000,
+                waveZombies: 10,
+                zombiesSpawned: 0
+            };
+
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('gameWin').style.display = 'none';
+            document.getElementById('startBtn').textContent = '▶ 开始游戏';
+            document.getElementById('startBtn').disabled = false;
+
+            updateSunDisplay();
+            updateWaveDisplay();
+            updateZombieCount();
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+        }
+
+        // 天空自然生成阳光
+        function skySunGenerator() {
+            if (gameState.gameRunning && !gameState.gameOver) {
+                const x = GRID_OFFSET_X + Math.random() * (GRID_COLS * CELL_SIZE);
+                const y = GRID_OFFSET_Y - 50;
+                gameState.suns.push({ x, y, targetY: GRID_OFFSET_Y + Math.random() * 200, value: 25, falling: true });
+            }
+            setTimeout(skySunGenerator, 10000);
+        }
+
+        // ========== 初始化 ==========
+        createPlantSelector();
+        drawGrid();
+        requestAnimationFrame(gameLoop);
+        skySunGenerator();
+    </script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>合成大西瓜 - 糖果乐园</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        body.iframe-mode { padding: 0; background: #667eea; }
+        body.iframe-mode h1, body.iframe-mode .instructions { display: none; }
+        h1 { color: #fff; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .game-container {
+            position: relative;
+            background: #FFE4B5;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        canvas { display: block; }
+        .score-display {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            z-index: 10;
+        }
+        .next-fruit {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            text-align: right;
+            z-index: 10;
+        }
+        .next-fruit span { font-size: 14px; color: #666; }
+        .next-fruit .fruit-icon { font-size: 30px; }
+        .start-screen, .game-over-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 20;
+            background: rgba(255,255,255,0.95);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 300px;
+        }
+        .start-screen h2, .game-over-screen h2 {
+            font-size: 24px;
+            color: #e74c3c;
+            margin-bottom: 15px;
+        }
+        .start-screen p { color: #666; font-size: 14px; margin-bottom: 20px; line-height: 1.6; }
+        .btn {
+            padding: 12px 30px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+        .btn:hover { opacity: 0.9; }
+        .game-over-screen { display: none; }
+        .game-over-screen .score-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+        }
+        .game-over-screen .score-info p {
+            font-size: 18px;
+            color: #333;
+            margin: 5px 0;
+        }
+        .aim-line {
+            position: absolute;
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍉 合成大西瓜</h1>
+    <div class="game-container">
+        <canvas id="game" width="400" height="600"></canvas>
+        <div class="score-display">得分：<strong id="score">0</strong></div>
+        <div class="next-fruit">
+            <span>下一个:</span><br>
+            <span class="fruit-icon" id="nextFruit">🍇</span>
+        </div>
+        <div class="start-screen" id="startScreen">
+            <h2>🍉 合成大西瓜</h2>
+            <p>点击屏幕投放水果<br>相同水果合成更大的水果<br>不要让水果堆满屏幕!</p>
+            <button class="btn" onclick="startGame()">开始游戏</button>
+        </div>
+        <div class="game-over-screen" id="gameOverScreen">
+            <h2>游戏结束!</h2>
+            <div class="score-info">
+                <p>得分：<strong id="finalScore">0</strong></p>
+                <p>最高：<strong id="bestScore">0</strong></p>
+            </div>
+            <button class="btn" onclick="startGame()">再来一局</button>
+        </div>
+    </div>
+    <p class="instructions">点击屏幕投放水果 | 相同水果合成更大的!</p>
+
+    <script>
+        if (window.self !== window.top) {
+            document.body.classList.add('iframe-mode');
+        }
+
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        // 水果定义：半径、分数、emoji
+        const fruits = [
+            { name: '葡萄', radius: 20, score: 2, emoji: '🍇', color: '#9b59b6' },
+            { name: '樱桃', radius: 30, score: 4, emoji: '🍒', color: '#e74c3c' },
+            { name: '橘子', radius: 45, score: 8, emoji: '🍊', color: '#f39c12' },
+            { name: '柠檬', radius: 60, score: 16, emoji: '🍋', color: '#f1c40f' },
+            { name: '猕猴桃', radius: 75, score: 32, emoji: '🥝', color: '#8b7355' },
+            { name: '西红柿', radius: 90, score: 64, emoji: '🍅', color: '#c0392b' },
+            { name: '桃子', radius: 105, score: 128, emoji: '🍑', color: '#ffafcc' },
+            { name: '菠萝', radius: 120, score: 256, emoji: '🍍', color: '#f39c12' },
+            { name: '椰子', radius: 135, score: 512, emoji: '🥥', color: '#ecf0f1' },
+            { name: '西瓜', radius: 150, score: 1024, emoji: '🍉', color: '#27ae60' }
+        ];
+
+        let gameState = 'start';
+        let score = 0;
+        let bestScore = localStorage.getItem('watermelonBest') || 0;
+        let balls = [];
+        let currentFruit = 0;
+        let nextFruit = 1;
+        let canDrop = true;
+        let dropX = 200;
+
+        function initGame() {
+            score = 0;
+            balls = [];
+            currentFruit = 0;
+            nextFruit = Math.floor(Math.random() * 3);
+            canDrop = true;
+            updateNextFruitDisplay();
+        }
+
+        function updateNextFruitDisplay() {
+            document.getElementById('nextFruit').textContent = fruits[nextFruit].emoji;
+        }
+
+        function drawBall(ball) {
+            const fruit = fruits[ball.level];
+
+            // 影子
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.ellipse(ball.x, ball.y + ball.radius + 3, ball.radius, ball.radius * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 主体
+            ctx.fillStyle = fruit.color;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 高光
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath();
+            ctx.arc(ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, ball.radius * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Emoji
+            ctx.font = `${ball.radius}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(fruit.emoji, ball.x, ball.y);
+        }
+
+        function drawAimLine() {
+            if (!canDrop || gameState !== 'playing') return;
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(dropX, 80);
+            ctx.lineTo(dropX, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 绘制预览水果
+            const fruit = fruits[currentFruit];
+            ctx.font = '40px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(fruit.emoji, dropX, 80);
+        }
+
+        function drawWalls() {
+            // 两侧墙壁
+            ctx.fillStyle = '#8b7355';
+            ctx.fillRect(0, 0, 20, canvas.height);
+            ctx.fillRect(canvas.width - 20, 0, 20, canvas.height);
+
+            // 顶部提示线
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, 150);
+            ctx.lineTo(canvas.width, 150);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 危险区域提示
+            ctx.fillStyle = 'rgba(231, 76, 60, 0.1)';
+            ctx.fillRect(20, 0, canvas.width - 40, 150);
+        }
+
+        function checkCollision(ball1, ball2) {
+            const dx = ball2.x - ball1.x;
+            const dy = ball2.y - ball1.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < ball1.radius + ball2.radius;
+        }
+
+        function resolveCollision(ball1, ball2) {
+            const dx = ball2.x - ball1.x;
+            const dy = ball2.y - ball1.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance === 0) return;
+
+            // 分离球体
+            const overlap = (ball1.radius + ball2.radius - distance) / 2;
+            const nx = dx / distance;
+            const ny = dy / distance;
+
+            ball1.x -= nx * overlap;
+            ball1.y -= ny * overlap;
+            ball2.x += nx * overlap;
+            ball2.y += ny * overlap;
+
+            // 交换速度（简化物理）
+            const tempVx = ball1.vx;
+            const tempVy = ball1.vy;
+            ball1.vx = ball2.vx * 0.8;
+            ball1.vy = ball2.vy * 0.8;
+            ball2.vx = tempVx * 0.8;
+            ball2.vy = tempVy * 0.8;
+        }
+
+        function update() {
+            if (gameState !== 'playing') return;
+
+            balls.forEach(ball => {
+                if (!ball.settled) {
+                    ball.vy += 0.5; // 重力
+                    ball.vx *= 0.99; // 摩擦力
+                    ball.x += ball.vx;
+                    ball.y += ball.vy;
+
+                    // 墙壁碰撞
+                    if (ball.x - ball.radius < 20) {
+                        ball.x = 20 + ball.radius;
+                        ball.vx *= -0.5;
+                    }
+                    if (ball.x + ball.radius > canvas.width - 20) {
+                        ball.x = canvas.width - 20 - ball.radius;
+                        ball.vx *= -0.5;
+                    }
+
+                    // 地面碰撞
+                    if (ball.y + ball.radius > canvas.height - 20) {
+                        ball.y = canvas.height - 20 - ball.radius;
+                        ball.vy *= -0.3;
+                        ball.vx *= 0.9;
+                    }
+
+                    // 球体碰撞
+                    balls.forEach(other => {
+                        if (ball !== other && checkCollision(ball, other)) {
+                            resolveCollision(ball, other);
+                        }
+                    });
+
+                    // 检查是否静止
+                    if (Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.1 && ball.y > canvas.height - 100) {
+                        ball.settled = true;
+                    }
+                }
+            });
+
+            // 检查合成
+            for (let i = 0; i < balls.length; i++) {
+                for (let j = i + 1; j < balls.length; j++) {
+                    const ball1 = balls[i];
+                    const ball2 = balls[j];
+                    if (ball1.level === ball2.level && checkCollision(ball1, ball2)) {
+                        // 合成新水果
+                        const newLevel = ball1.level + 1;
+                        const newX = (ball1.x + ball2.x) / 2;
+                        const newY = (ball1.y + ball2.y) / 2;
+
+                        balls.splice(j, 1);
+                        balls.splice(i, 1);
+
+                        if (newLevel < fruits.length) {
+                            balls.push({
+                                x: newX,
+                                y: newY,
+                                radius: fruits[newLevel].radius,
+                                level: newLevel,
+                                vx: 0,
+                                vy: 0,
+                                settled: false
+                            });
+                            score += fruits[ball1.level].score;
+                            document.getElementById('score').textContent = score;
+                        } else {
+                            score += fruits[ball1.level].score * 2;
+                            document.getElementById('score').textContent = score;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // 检查游戏结束（水果堆积超过危险线）
+            balls.forEach(ball => {
+                if (ball.y - ball.radius < 150 && ball.settled) {
+                    gameOver();
+                }
+            });
+        }
+
+        function draw() {
+            // 背景
+            ctx.fillStyle = '#FFE4B5';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawWalls();
+            balls.forEach(drawBall);
+            drawAimLine();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            gameState = 'playing';
+            initGame();
+            document.getElementById('score').textContent = '0';
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOverScreen').style.display = 'none';
+            canDrop = true;
+        }
+
+        function dropFruit() {
+            if (!canDrop || gameState !== 'playing') return;
+
+            canDrop = false;
+            balls.push({
+                x: dropX,
+                y: 80,
+                radius: fruits[currentFruit].radius,
+                level: currentFruit,
+                vx: 0,
+                vy: 0,
+                settled: false
+            });
+
+            currentFruit = nextFruit;
+            nextFruit = Math.floor(Math.random() * Math.min(4, currentFruit + 2));
+            updateNextFruitDisplay();
+
+            setTimeout(() => { canDrop = true; }, 500);
+        }
+
+        function gameOver() {
+            gameState = 'gameover';
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('watermelonBest', bestScore);
+            }
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('bestScore').textContent = Math.max(bestScore, localStorage.getItem('watermelonBest') || 0);
+            document.getElementById('gameOverScreen').style.display = 'block';
+        }
+
+        // 控制
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            dropX = e.clientX - rect.left;
+            dropX = Math.max(20 + 20, Math.min(canvas.width - 20 - 20, dropX));
+        });
+
+        canvas.addEventListener('click', dropFruit);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            dropX = e.touches[0].clientX - rect.left;
+            dropX = Math.max(20 + 20, Math.min(canvas.width - 20 - 20, dropX));
+            dropFruit();
+        });
+
+        // 初始化
+        initGame();
+        gameLoop();
+    </script>
+</body>
+</html>

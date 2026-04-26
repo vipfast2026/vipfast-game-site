@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>颜色匹配 - 糖果乐园</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        h1 { color: #fff; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .stats {
+            display: flex;
+            gap: 30px;
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        .color-display {
+            width: 200px;
+            height: 200px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            transition: background-color 0.3s;
+        }
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .color-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 15px;
+            border: 4px solid rgba(255,255,255,0.5);
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .color-btn:hover { transform: scale(1.1); }
+        .color-btn.correct { animation: correct 0.5s; }
+        .color-btn.wrong { animation: wrong 0.5s; }
+        @keyframes correct {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        @keyframes wrong {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        .timer-bar {
+            width: 200px;
+            height: 10px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 5px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        .timer-fill {
+            height: 100%;
+            background: #fff;
+            transition: width 0.1s linear;
+        }
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .game-over h2 { color: #fc4a1a; margin-bottom: 15px; }
+        .btn {
+            margin-top: 15px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: linear-gradient(135deg, #fc4a1a, #f7b733);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 颜色匹配</h1>
+    <div class="stats">
+        <span>分数：<strong id="score">0</strong></span>
+        <span>最高：<strong id="highScore">0</strong></span>
+    </div>
+    <div class="color-display" id="colorDisplay"></div>
+    <div class="buttons" id="buttons"></div>
+    <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+    <button class="btn" onclick="initGame()" style="margin-top:20px;">🔄 重新开始</button>
+
+    <div class="game-over" id="gameOver">
+        <h2>⏰ 时间到!</h2>
+        <p>最终得分：<span id="finalScore">0</span></p>
+        <button class="btn" onclick="initGame()">再玩一次</button>
+    </div>
+
+    <script>
+        const colors = [
+            { name: 'red', hex: '#e74c3c' },
+            { name: 'blue', hex: '#3498db' },
+            { name: 'green', hex: '#2ecc71' },
+            { name: 'yellow', hex: '#f1c40f' },
+            { name: 'purple', hex: '#9b59b6' },
+            { name: 'orange', hex: '#e67e22' },
+            { name: 'pink', hex: '#ff6b9d' },
+            { name: 'cyan', hex: '#00bcd4' }
+        ];
+
+        let score = 0;
+        let highScore = localStorage.getItem('colorMatchHighScore') || 0;
+        let targetColor;
+        let timeLeft = 100;
+        let gameLoop;
+        let isPlaying = false;
+
+        document.getElementById('highScore').textContent = highScore;
+
+        function randomColor() {
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function generateOptions() {
+            const options = [targetColor];
+            while (options.length < 4) {
+                const c = randomColor();
+                if (!options.includes(c)) options.push(c);
+            }
+            // 打乱选项
+            for (let i = options.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [options[i], options[j]] = [options[j], options[i]];
+            }
+            return options;
+        }
+
+        function initGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            score = 0;
+            timeLeft = 100;
+            document.getElementById('score').textContent = score;
+            isPlaying = true;
+            nextRound();
+            if (gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(() => {
+                timeLeft -= 0.5;
+                document.getElementById('timerFill').style.width = timeLeft + '%';
+                if (timeLeft <= 0) {
+                    gameOver();
+                }
+            }, 50);
+        }
+
+        function nextRound() {
+            targetColor = randomColor();
+            document.getElementById('colorDisplay').style.backgroundColor = targetColor.hex;
+
+            const buttons = document.getElementById('buttons');
+            buttons.innerHTML = '';
+            const options = generateOptions();
+
+            options.forEach(color => {
+                const btn = document.createElement('button');
+                btn.className = 'color-btn';
+                btn.style.backgroundColor = color.hex;
+                btn.onclick = () => selectColor(color, btn);
+                buttons.appendChild(btn);
+            });
+        }
+
+        function selectColor(color, btn) {
+            if (!isPlaying) return;
+
+            if (color.name === targetColor.name) {
+                // 正确
+                score++;
+                document.getElementById('score').textContent = score;
+                btn.classList.add('correct');
+                timeLeft = Math.min(100, timeLeft + 10);
+                setTimeout(() => nextRound(), 300);
+            } else {
+                // 错误
+                btn.classList.add('wrong');
+                timeLeft -= 20;
+                if (timeLeft <= 0) {
+                    gameOver();
+                }
+            }
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            clearInterval(gameLoop);
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('colorMatchHighScore', highScore);
+                document.getElementById('highScore').textContent = highScore;
+            }
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        initGame();
+    </script>
+</body>
+</html>

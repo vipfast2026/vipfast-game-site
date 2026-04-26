@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迷宫逃脱 - 糖果乐园</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        h1 { color: #fff; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .stats {
+            display: flex;
+            gap: 30px;
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        canvas {
+            background: #1a1a2e;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .btn {
+            margin-top: 15px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: linear-gradient(135deg, #2c3e50, #4ca1af);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+        .btn:hover { transform: scale(1.05); }
+        .controls {
+            margin-top: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .win-message h2 { color: #2c3e50; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <h1>🌀 迷宫逃脱</h1>
+    <div class="stats">
+        <span>关卡：<strong id="level">1</strong></span>
+        <span>时间：<strong id="timer">0</strong>s</span>
+    </div>
+    <canvas id="maze" width="400" height="400"></canvas>
+    <div class="controls">使用 ↑↓←→ 或 WASD 移动</div>
+    <button class="btn" onclick="initGame()">🔄 重新开始</button>
+
+    <div class="win-message" id="winMsg">
+        <h2>🎉 到达终点!</h2>
+        <p>用时：<span id="finalTime">0</span>秒</p>
+        <button class="btn" onclick="nextLevel()">下一关</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('maze');
+        const ctx = canvas.getContext('2d');
+
+        const COLS = 10;
+        const ROWS = 10;
+        const CELL_SIZE = 40;
+
+        let maze = [];
+        let player = { col: 0, row: 0 };
+        let goal = { col: COLS-1, row: ROWS-1 };
+        let level = 1;
+        let startTime;
+        let timerInterval;
+        let gameActive = false;
+
+        function generateMaze() {
+            // 初始化迷宫，所有墙都关闭
+            maze = [];
+            for (let r = 0; r < ROWS; r++) {
+                maze[r] = [];
+                for (let c = 0; c < COLS; c++) {
+                    maze[r][c] = { top: true, right: true, bottom: true, left: true, visited: false };
+                }
+            }
+
+            // 使用 DFS 生成迷宫
+            const stack = [];
+            const start = { col: 0, row: 0 };
+            maze[start.row][start.col].visited = true;
+            stack.push(start);
+
+            while (stack.length > 0) {
+                const current = stack[stack.length - 1];
+                const neighbors = getUnvisitedNeighbors(current.col, current.row);
+
+                if (neighbors.length > 0) {
+                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    removeWall(current, next);
+                    maze[next.row][next.col].visited = true;
+                    stack.push(next);
+                } else {
+                    stack.pop();
+                }
+            }
+
+            // 重置访问状态用于显示
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    maze[r][c].visited = false;
+                }
+            }
+        }
+
+        function getUnvisitedNeighbors(col, row) {
+            const neighbors = [];
+            const directions = [
+                { dc: 0, dr: -2 }, { dc: 2, dr: 0 },
+                { dc: 0, dr: 2 }, { dc: -2, dr: 0 }
+            ];
+
+            for (const { dc, dr } of directions) {
+                const nc = col + dc;
+                const nr = row + dr;
+                if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS && !maze[nr][nc].visited) {
+                    neighbors.push({ col: nc, row: nr });
+                }
+            }
+            return neighbors;
+        }
+
+        function removeWall(a, b) {
+            const dc = b.col - a.col;
+            const dr = b.row - a.row;
+
+            if (dc === 2) {
+                maze[a.row][a.col].right = false;
+                maze[b.row][b.col].left = false;
+            } else if (dc === -2) {
+                maze[a.row][a.col].left = false;
+                maze[b.row][b.col].right = false;
+            } else if (dr === 2) {
+                maze[a.row][a.col].bottom = false;
+                maze[b.row][b.col].top = false;
+            } else if (dr === -2) {
+                maze[a.row][a.col].top = false;
+                maze[b.row][b.col].bottom = false;
+            }
+        }
+
+        function drawMaze() {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#4ca1af';
+            ctx.lineWidth = 2;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const x = c * CELL_SIZE;
+                    const y = r * CELL_SIZE;
+
+                    if (maze[r][c].top) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x + CELL_SIZE, y);
+                        ctx.stroke();
+                    }
+                    if (maze[r][c].right) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + CELL_SIZE, y);
+                        ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE);
+                        ctx.stroke();
+                    }
+                    if (maze[r][c].bottom) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + CELL_SIZE, y + CELL_SIZE);
+                        ctx.lineTo(x, y + CELL_SIZE);
+                        ctx.stroke();
+                    }
+                    if (maze[r][c].left) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, y + CELL_SIZE);
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // 绘制终点
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(goal.col * CELL_SIZE + 5, goal.row * CELL_SIZE + 5, CELL_SIZE - 10, CELL_SIZE - 10);
+
+            // 绘制玩家
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(
+                player.col * CELL_SIZE + CELL_SIZE/2,
+                player.row * CELL_SIZE + CELL_SIZE/2,
+                CELL_SIZE/3, 0, Math.PI * 2
+            );
+            ctx.fill();
+        }
+
+        function movePlayer(dc, dr) {
+            if (!gameActive) return;
+
+            const newCol = player.col + dc;
+            const newRow = player.row + dr;
+
+            if (newCol < 0 || newCol >= COLS || newRow < 0 || newRow >= ROWS) return;
+
+            // 检查墙
+            if (dc === 1 && maze[player.row][player.col].right) return;
+            if (dc === -1 && maze[player.row][player.col].left) return;
+            if (dr === 1 && maze[player.row][player.col].bottom) return;
+            if (dr === -1 && maze[player.row][player.col].top) return;
+
+            player.col = newCol;
+            player.row = newRow;
+            drawMaze();
+
+            // 检查是否到达终点
+            if (player.col === goal.col && player.row === goal.row) {
+                gameActive = false;
+                clearInterval(timerInterval);
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('finalTime').textContent = elapsed;
+                document.getElementById('winMsg').style.display = 'block';
+            }
+        }
+
+        function initGame() {
+            level = 1;
+            document.getElementById('level').textContent = level;
+            startLevel();
+        }
+
+        function startLevel() {
+            document.getElementById('winMsg').style.display = 'none';
+            player = { col: 0, row: 0 };
+            goal = { col: COLS-1, row: ROWS-1 };
+            generateMaze();
+            gameActive = true;
+            startTime = Date.now();
+            drawMaze();
+
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('timer').textContent = elapsed;
+            }, 1000);
+        }
+
+        function nextLevel() {
+            level++;
+            document.getElementById('level').textContent = level;
+            startLevel();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp': case 'w': case 'W': movePlayer(0, -1); break;
+                case 'ArrowDown': case 's': case 'S': movePlayer(0, 1); break;
+                case 'ArrowLeft': case 'a': case 'A': movePlayer(-1, 0); break;
+                case 'ArrowRight': case 'd': case 'D': movePlayer(1, 0); break;
+            }
+        });
+
+        // 触摸控制
+        let touchStartX, touchStartY;
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                movePlayer(dx > 0 ? 1 : -1, 0);
+            } else {
+                movePlayer(0, dy > 0 ? 1 : -1);
+            }
+        });
+
+        initGame();
+    </script>
+</body>
+</html>

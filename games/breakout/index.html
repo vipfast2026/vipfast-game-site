@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>弹球打砖块 - 糖果乐园</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        h1 { color: #fff; margin-bottom: 10px; }
+        .stats {
+            display: flex;
+            gap: 30px;
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        canvas {
+            background: linear-gradient(180deg, #0f0f23 0%, #1a1a3e 100%);
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .btn {
+            margin-top: 15px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+        .btn:hover { transform: scale(1.05); }
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+        }
+        .game-over h2 { color: #e74c3c; margin-bottom: 10px; }
+        .game-over.win h2 { color: #27ae60; }
+    </style>
+</head>
+<body>
+    <h1>🧱 弹球打砖块</h1>
+    <div class="stats">
+        <span>分数：<strong id="score">0</strong></span>
+        <span>生命：<strong id="lives">3</strong></span>
+    </div>
+    <canvas id="game" width="400" height="500"></canvas>
+    <button class="btn" onclick="initGame()">🔄 重新开始</button>
+
+    <div class="game-over" id="gameOver">
+        <h2>游戏结束</h2>
+        <p>得分：<span id="finalScore">0</span></p>
+        <button class="btn" onclick="initGame()">再玩一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        let ball, paddle, bricks, score, lives, animationId;
+        let rightPressed = false, leftPressed = false;
+
+        const brickRowCount = 5;
+        const brickColumnCount = 7;
+        const brickWidth = 50;
+        const brickHeight = 20;
+        const brickPadding = 10;
+        const brickOffsetTop = 50;
+        const brickOffsetLeft = 5;
+
+        function initBall() {
+            ball = { x: canvas.width/2, y: canvas.height-30, dx: 4, dy: -4, radius: 8 };
+        }
+
+        function initPaddle() {
+            paddle = { width: 80, height: 10, x: (canvas.width-80)/2 };
+        }
+
+        function initBricks() {
+            bricks = [];
+            for(let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for(let r = 0; r < brickRowCount; r++) {
+                    const hue = (c * 50 + r * 30) % 360;
+                    bricks[c][r] = { x: 0, y: 0, status: 1, color: `hsl(${hue}, 70%, 60%)` };
+                }
+            }
+        }
+
+        function initGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            score = 0;
+            lives = 3;
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+            initPaddle();
+            initBricks();
+            initBall();
+            if (animationId) cancelAnimationFrame(animationId);
+            draw();
+        }
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.roundRect(paddle.x, canvas.height-paddle.height-5, paddle.width, paddle.height, 5);
+            ctx.fillStyle = '#3498db';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawBricks() {
+            for(let c = 0; c < brickColumnCount; c++) {
+                for(let r = 0; r < brickRowCount; r++) {
+                    if(bricks[c][r].status === 1) {
+                        const brickX = c*(brickWidth+brickPadding)+brickOffsetLeft;
+                        const brickY = r*(brickHeight+brickPadding)+brickOffsetTop;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickY;
+                        ctx.beginPath();
+                        ctx.roundRect(brickX, brickY, brickWidth, brickHeight, 3);
+                        ctx.fillStyle = bricks[c][r].color;
+                        ctx.fill();
+                        ctx.closePath();
+                    }
+                }
+            }
+        }
+
+        function collisionDetection() {
+            for(let c = 0; c < brickColumnCount; c++) {
+                for(let r = 0; r < brickRowCount; r++) {
+                    const b = bricks[c][r];
+                    if(b.status === 1) {
+                        if(ball.x > b.x && ball.x < b.x+brickWidth && ball.y > b.y && ball.y < b.y+brickHeight) {
+                            ball.dy = -ball.dy;
+                            b.status = 0;
+                            score += 10;
+                            document.getElementById('score').textContent = score;
+                            if(score === brickRowCount*brickColumnCount*10) {
+                                gameOver(true);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function movePaddle() {
+            if(rightPressed && paddle.x < canvas.width-paddle.width) paddle.x += 7;
+            else if(leftPressed && paddle.x > 0) paddle.x -= 7;
+        }
+
+        function update() {
+            // Ball collision with walls
+            if(ball.x + ball.dx > canvas.width-ball.radius || ball.x + ball.dx < ball.radius) {
+                ball.dx = -ball.dx;
+            }
+            if(ball.y + ball.dy < ball.radius) {
+                ball.dy = -ball.dy;
+            } else if(ball.y + ball.dy > canvas.height-ball.radius) {
+                if(ball.x > paddle.x && ball.x < paddle.x + paddle.width) {
+                    const hitPoint = (ball.x - paddle.x) / paddle.width - 0.5;
+                    ball.dx = hitPoint * 8;
+                    ball.dy = -ball.dy;
+                } else {
+                    lives--;
+                    document.getElementById('lives').textContent = lives;
+                    if(lives === 0) {
+                        gameOver(false);
+                        return;
+                    }
+                    initBall();
+                }
+            }
+
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+        }
+
+        function gameOver(win) {
+            cancelAnimationFrame(animationId);
+            const msg = document.getElementById('gameOver');
+            msg.className = win ? 'game-over win' : 'game-over';
+            msg.querySelector('h2').textContent = win ? '🎉 你赢了!' : '💀 游戏结束';
+            document.getElementById('finalScore').textContent = score;
+            msg.style.display = 'block';
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBricks();
+            drawBall();
+            drawPaddle();
+            collisionDetection();
+            movePaddle();
+            update();
+            animationId = requestAnimationFrame(draw);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'Right' || e.key === 'ArrowRight') rightPressed = true;
+            else if(e.key === 'Left' || e.key === 'ArrowLeft') leftPressed = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if(e.key === 'Right' || e.key === 'ArrowRight') rightPressed = false;
+            else if(e.key === 'Left' || e.key === 'ArrowLeft') leftPressed = false;
+        });
+
+        // Mouse control
+        canvas.addEventListener('mousemove', (e) => {
+            const relativeX = e.clientX - canvas.offsetLeft;
+            if(relativeX > 0 && relativeX < canvas.width) {
+                paddle.x = relativeX - paddle.width/2;
+            }
+        });
+
+        initGame();
+    </script>
+</body>
+</html>

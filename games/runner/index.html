@@ -22,6 +22,17 @@
             overflow: hidden;
         }
 
+        /* iframe 嵌入时的样式 */
+        body.iframe-mode {
+            padding: 0;
+            background: transparent;
+        }
+
+        body.iframe-mode .game-container {
+            box-shadow: none;
+            border: none;
+        }
+
         .game-container {
             position: relative;
             border-radius: 20px;
@@ -280,6 +291,11 @@
     </div>
 
     <script>
+        // 检测是否在 iframe 中运行
+        if (window.self !== window.top) {
+            document.body.classList.add('iframe-mode');
+        }
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 

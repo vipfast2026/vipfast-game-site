@@ -24,6 +24,17 @@
             padding: 10px;
         }
 
+        /* iframe 嵌入时的样式 */
+        body.iframe-mode {
+            padding: 0;
+            background: transparent;
+        }
+
+        body.iframe-mode .game-wrapper {
+            box-shadow: none;
+            border: none;
+        }
+
         h1 {
             margin-bottom: 10px;
             font-size: 24px;
@@ -201,6 +212,11 @@
     </div>
 
     <script>
+        // 检测是否在 iframe 中运行
+        if (window.self !== window.top) {
+            document.body.classList.add('iframe-mode');
+        }
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 

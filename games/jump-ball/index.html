@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跳跃小球 - 糖果乐园</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        h1 { color: #fff; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .stats { color: #fff; margin-bottom: 15px; font-size: 20px; }
+        canvas {
+            background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .btn {
+            margin-top: 15px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: white;
+            color: #11998e;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <h1>⚽ 跳跃小球</h1>
+    <div class="stats">得分：<strong id="score">0</strong></div>
+    <canvas id="game" width="400" height="300"></canvas>
+    <button class="btn" onclick="initGame()">🔄 重新开始</button>
+    <p style="color: #fff; margin-top: 10px; font-size: 14px;">按空格键或点击屏幕跳跃</p>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        let ball, obstacles, clouds, score, gravity, gameRunning, frame;
+        let particles = [];
+
+        function initBall() {
+            ball = {
+                x: 50,
+                y: canvas.height - 50,
+                radius: 15,
+                dy: 0,
+                jumpPower: -12,
+                grounded: true,
+                color: '#ff6b6b'
+            };
+        }
+
+        function initGame() {
+            initBall();
+            obstacles = [];
+            clouds = [];
+            particles = [];
+            score = 0;
+            gravity = 0.6;
+            gameRunning = true;
+            frame = 0;
+            document.getElementById('score').textContent = score;
+            if (animationId) cancelAnimationFrame(animationId);
+            animate();
+        }
+
+        let animationId;
+
+        function jump() {
+            if (!gameRunning) {
+                initGame();
+                return;
+            }
+            if (ball.grounded) {
+                ball.dy = ball.jumpPower;
+                ball.grounded = false;
+                // 创建跳跃粒子
+                for (let i = 0; i < 5; i++) {
+                    particles.push({
+                        x: ball.x,
+                        y: ball.y + ball.radius,
+                        dx: (Math.random() - 0.5) * 4,
+                        dy: Math.random() * 2,
+                        life: 20,
+                        color: 'rgba(255,255,255,0.8)'
+                    });
+                }
+            }
+        }
+
+        function createObstacle() {
+            const height = 30 + Math.random() * 40;
+            obstacles.push({
+                x: canvas.width,
+                y: canvas.height - height,
+                width: 25,
+                height: height,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+                passed: false
+            });
+        }
+
+        function createCloud() {
+            clouds.push({
+                x: canvas.width,
+                y: 30 + Math.random() * 80,
+                width: 60 + Math.random() * 40,
+                speed: 0.5 + Math.random() * 0.5
+            });
+        }
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.fill();
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+
+            // 眼睛
+            ctx.beginPath();
+            ctx.arc(ball.x + 5, ball.y - 3, 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(ball.x + 7, ball.y - 3, 2, 0, Math.PI * 2);
+            ctx.fillStyle = 'black';
+            ctx.fill();
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obs => {
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                // 顶部装饰
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillRect(obs.x, obs.y, obs.width, 5);
+            });
+        }
+
+        function drawClouds() {
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            clouds.forEach(cloud => {
+                ctx.beginPath();
+                ctx.ellipse(cloud.x, cloud.y, cloud.width/2, 20, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(cloud.x - 15, cloud.y + 10, cloud.width/3, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(cloud.x + 15, cloud.y + 10, cloud.width/3, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawParticles() {
+            particles.forEach((p, index) => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                p.x += p.dx;
+                p.y += p.dy;
+                p.life--;
+                if (p.life <= 0) particles.splice(index, 1);
+            });
+        }
+
+        function drawGround() {
+            ctx.fillStyle = '#27ae60';
+            ctx.fillRect(0, canvas.height - 5, canvas.width, 5);
+        }
+
+        function update() {
+            frame++;
+
+            // 重力
+            ball.dy += gravity;
+            ball.y += ball.dy;
+
+            // 地面碰撞
+            if (ball.y + ball.radius > canvas.height - 5) {
+                ball.y = canvas.height - 5 - ball.radius;
+                ball.dy = 0;
+                ball.grounded = true;
+            }
+
+            // 生成障碍物
+            if (frame % 90 === 0) {
+                createObstacle();
+            }
+
+            // 生成云
+            if (frame % 120 === 0) {
+                createCloud();
+            }
+
+            // 更新云
+            clouds.forEach((cloud, index) => {
+                cloud.x -= cloud.speed;
+                if (cloud.x + cloud.width < 0) clouds.splice(index, 1);
+            });
+
+            // 更新障碍物
+            obstacles.forEach((obs, index) => {
+                obs.x -= 4;
+
+                // 检测得分
+                if (!obs.passed && obs.x + obs.width < ball.x - ball.radius) {
+                    obs.passed = true;
+                    score++;
+                    document.getElementById('score').textContent = score;
+                }
+
+                // 移除屏幕外的障碍物
+                if (obs.x + obs.width < 0) {
+                    obstacles.splice(index, 1);
+                }
+
+                // 碰撞检测
+                if (
+                    ball.x + ball.radius > obs.x &&
+                    ball.x - ball.radius < obs.x + obs.width &&
+                    ball.y + ball.radius > obs.y
+                ) {
+                    gameRunning = false;
+                    // 撞击粒子
+                    for (let i = 0; i < 10; i++) {
+                        particles.push({
+                            x: ball.x,
+                            y: ball.y,
+                            dx: (Math.random() - 0.5) * 8,
+                            dy: (Math.random() - 0.5) * 8,
+                            life: 30,
+                            color: 'rgba(255,100,100,0.8)'
+                        });
+                    }
+                }
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawClouds();
+            drawParticles();
+            drawGround();
+            if (gameRunning) {
+                drawBall();
+                drawObstacles();
+                update();
+            } else {
+                // 游戏结束显示
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.font = '30px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('游戏结束!', canvas.width/2, canvas.height/2);
+                ctx.font = '16px sans-serif';
+                ctx.fillText(`得分：${score}`, canvas.width/2, canvas.height/2 + 30);
+            }
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                jump();
+            }
+        });
+
+        // 触摸/点击控制
+        canvas.addEventListener('click', jump);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            jump();
+        });
+
+        initGame();
+    </script>
+</body>
+</html>

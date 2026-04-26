@@ -23,6 +23,17 @@
             padding: 20px;
         }
 
+        /* iframe 嵌入时的样式 */
+        body.iframe-mode {
+            padding: 0;
+            background: transparent;
+        }
+
+        body.iframe-mode .game-container {
+            box-shadow: none;
+            border: none;
+        }
+
         .game-container {
             background: rgba(255,255,255,0.2);
             backdrop-filter: blur(10px);
@@ -316,6 +327,10 @@
         const MAX_MOVES = 20;
 
         // 游戏状态
+        if (window.self !== window.top) {
+            document.body.classList.add('iframe-mode');
+        }
+
         let board = [];
         let selectedCandy = null;
         let score = 0;
